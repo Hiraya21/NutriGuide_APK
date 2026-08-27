@@ -2,72 +2,19 @@ package com.example.ui.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.AdminPanelSettings
-import androidx.compose.material.icons.filled.Agriculture
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FactCheck
-import androidx.compose.material.icons.filled.FilterAlt
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.TrendingUp
-import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,7 +22,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,9 +29,6 @@ import com.example.domain.models.AdminAuditLog
 import com.example.domain.models.AppLanguage
 import com.example.domain.models.FarmerRegistryItem
 import com.example.domain.models.UserAccount
-import com.example.domain.models.UserRole
-import com.example.ui.theme.FarmGreenDark
-import com.example.ui.theme.FarmGreenPrimary
 
 @Composable
 fun AdminDashboardScreen(
@@ -95,6 +38,8 @@ fun AdminDashboardScreen(
     currentLanguage: AppLanguage,
     onBackToFarmerView: () -> Unit,
     onLogout: () -> Unit,
+    onUpdateFarmerStatus: (farmerId: String, newStatus: String) -> Unit = { _, _ -> },
+    onApproveFarmer: (farmerId: String) -> Unit = { _ -> },
     onBroadcastAlert: (title: String, message: String, priority: String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
@@ -102,14 +47,142 @@ fun AdminDashboardScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilterStatus by remember { mutableStateOf("All") }
 
+    // Status Dialog Management
+    var selectedFarmerForStatusChange by remember { mutableStateOf<FarmerRegistryItem?>(null) }
+    var feedbackMessage by remember { mutableStateOf<String?>(null) }
+
     // Broadcast form states
-    var alertTitle by remember { mutableStateOf("Monsoon Heavy Rain: Postpone Nitrogen Application") }
-    var alertMessage by remember { mutableStateOf("Advisory from DA-PhilRice Muñoz: Heavy rainfall expected in Central Luzon for the next 48 hours. Farmers are advised to delay urea and ammonium sulfate topdress to avoid fertilizer runoff.") }
+    var alertTitle by remember { mutableStateOf("CLSU Soil Science Advisory: Monsoon Wet Season Nutrient Management") }
+    var alertMessage by remember { mutableStateOf("Advisory from The Department of Soil Science, College of Agriculture, Central Luzon State University (Head: Arjay Aquino): Heavy rainfall expected across Muñoz & Nueva Ecija. Farmers are advised to postpone nitrogen broadcast to prevent leaching in clay loam paddies.") }
     var alertPriority by remember { mutableStateOf("High Advisory") }
     var broadcastSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     BackHandler {
         onBackToFarmerView()
+    }
+
+    // Status Change Dialog
+    if (selectedFarmerForStatusChange != null) {
+        val farmer = selectedFarmerForStatusChange!!
+        var tempStatus by remember(farmer.id) { mutableStateOf(farmer.subsidyStatus) }
+
+        AlertDialog(
+            onDismissRequest = { selectedFarmerForStatusChange = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        tint = Color(0xFF1565C0),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Modify Farmer Roster Status",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0D47A1)
+                    )
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Magsasaka: ${farmer.fullName}",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF212121)
+                    )
+                    Text(
+                        text = "RSBSA: ${farmer.rsbsaId} • ${farmer.barangay}, ${farmer.municipality}",
+                        fontSize = 11.sp,
+                        color = Color(0xFF616161)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Piliin ang Bagong Status (Dept. of Soil Science Accreditation):",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF37474F)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    val statusOptions = listOf(
+                        "Approved (CLSU Soil-Certified)" to "Approved & Soil Chemistry Validated",
+                        "Approved (DA-RCEF)" to "RSBSA & RCEF Subsidies Active",
+                        "Voucher Distributed" to "Fertilizer & Seed Vouchers Released",
+                        "Under Review" to "Pending Verification & Land Survey",
+                        "Needs Soil Re-Sampling" to "Soil Sample Inconclusive / Retest",
+                        "Suspended / Inactive" to "Temporarily Inactive / Non-Compliant"
+                    )
+
+                    statusOptions.forEach { (statusKey, description) ->
+                        val isSelected = tempStatus == statusKey
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { tempStatus = statusKey },
+                            color = if (isSelected) Color(0xFFE3F2FD) else Color(0xFFF8FAFC)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = { tempStatus = statusKey },
+                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF1565C0)),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = statusKey,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color(0xFF0D47A1) else Color(0xFF263238)
+                                    )
+                                    Text(
+                                        text = description,
+                                        fontSize = 9.5.sp,
+                                        color = Color(0xFF757575)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onUpdateFarmerStatus(farmer.id, tempStatus)
+                        feedbackMessage = "Status ni ${farmer.fullName} pinalitan ng \"$tempStatus\"!"
+                        selectedFarmerForStatusChange = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Save Status Change", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { selectedFarmerForStatusChange = null },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Cancel", fontSize = 12.sp, color = Color(0xFF546E7A))
+                }
+            },
+            shape = RoundedCornerShape(14.dp),
+            containerColor = Color.White
+        )
     }
 
     Column(
@@ -118,7 +191,7 @@ fun AdminDashboardScreen(
             .background(Color(0xFFF4F6F9))
             .testTag("screen_admin_dashboard")
     ) {
-        // Modern Top App Bar Header
+        // Top App Bar Header with CLSU Department of Soil Science Branding
         Surface(
             color = Color(0xFF0D47A1),
             shadowElevation = 6.dp
@@ -150,23 +223,23 @@ fun AdminDashboardScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.AdminPanelSettings,
+                                imageVector = Icons.Default.School,
                                 contentDescription = null,
                                 tint = Color(0xFFFFD54F),
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(17.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
-                                text = "DA-PhilRice Console",
-                                fontSize = 15.sp,
+                                text = "CLSU Department of Soil Science",
+                                fontSize = 14.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
                                 maxLines = 1
                             )
                         }
                         Text(
-                            text = "Agronomy Command Center",
-                            fontSize = 11.sp,
+                            text = "College of Agriculture • Central Luzon State University",
+                            fontSize = 10.5.sp,
                             color = Color(0xFFBBDEFB),
                             maxLines = 1
                         )
@@ -229,7 +302,7 @@ fun AdminDashboardScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Personnel Identity Banner Card
+                // Personnel Identity Banner Card Spotlight (Arjay Aquino - Head of Department)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF1565C0)),
@@ -243,7 +316,7 @@ fun AdminDashboardScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(36.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFF0D47A1)),
                             contentAlignment = Alignment.Center
@@ -252,27 +325,36 @@ fun AdminDashboardScreen(
                                 imageVector = Icons.Default.Shield,
                                 contentDescription = null,
                                 tint = Color(0xFFFFD54F),
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = if (currentUser.fullName.contains("Arjay", ignoreCase = true) || currentUser.isAdmin) "Arjay Aquino" else currentUser.fullName,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    maxLines = 1
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "(Head of Department)",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFFFD54F)
+                                )
+                            }
                             Text(
-                                text = currentUser.fullName,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                maxLines = 1
-                            )
-                            Text(
-                                text = "${currentUser.displayRoleLabel} • Badge #${currentUser.badgeOrPersonnelId}",
+                                text = "The Department of Soil Science, CAg - CLSU",
                                 fontSize = 10.sp,
                                 color = Color(0xFFE3F2FD),
                                 maxLines = 1
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
 
                         Box(
                             modifier = Modifier
@@ -289,13 +371,46 @@ fun AdminDashboardScreen(
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
-                                    text = "VERIFIED DA",
+                                    text = "CLSU ADMIN",
                                     fontSize = 8.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color.White
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        // Feedback message toast
+        if (feedbackMessage != null) {
+            Surface(
+                color = Color(0xFF2E7D32),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = feedbackMessage!!,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    IconButton(
+                        onClick = { feedbackMessage = null },
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(14.dp))
                     }
                 }
             }
@@ -320,7 +435,7 @@ fun AdminDashboardScreen(
                 onClick = { selectedTab = 0 },
                 text = {
                     Text(
-                        "📊 Overview & KPIs",
+                        "🏛️ CLSU Overview & KPIs",
                         fontSize = 12.sp,
                         fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
                         color = if (selectedTab == 0) Color(0xFF0D47A1) else Color(0xFF616161)
@@ -346,7 +461,7 @@ fun AdminDashboardScreen(
                 onClick = { selectedTab = 2 },
                 text = {
                     Text(
-                        "🧪 Fertilizer Demand",
+                        "🧪 Soil & Fertilizer Demand",
                         fontSize = 12.sp,
                         fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Medium,
                         color = if (selectedTab == 2) Color(0xFF0D47A1) else Color(0xFF616161)
@@ -399,7 +514,8 @@ fun AdminDashboardScreen(
                             searchQuery = searchQuery,
                             onSearchChange = { searchQuery = it },
                             selectedFilter = selectedFilterStatus,
-                            onFilterChange = { selectedFilterStatus = it }
+                            onFilterChange = { selectedFilterStatus = it },
+                            farmerRegistry = farmerRegistry
                         )
                     }
                     val filteredFarmers = farmerRegistry.filter {
@@ -439,7 +555,16 @@ fun AdminDashboardScreen(
                         }
                     } else {
                         items(filteredFarmers) { farmer ->
-                            FarmerRegistryCard(farmer = farmer)
+                            FarmerRegistryCard(
+                                farmer = farmer,
+                                onQuickApprove = {
+                                    onApproveFarmer(farmer.id)
+                                    feedbackMessage = "✅ Na-aprubahan si ${farmer.fullName} (CLSU Soil-Certified)!"
+                                },
+                                onChangeStatusClick = {
+                                    selectedFarmerForStatusChange = farmer
+                                }
+                            )
                         }
                     }
                 }
@@ -458,7 +583,7 @@ fun AdminDashboardScreen(
                             onPriorityChange = { alertPriority = it },
                             onSend = {
                                 onBroadcastAlert(alertTitle, alertMessage, alertPriority)
-                                broadcastSuccessMessage = "Advisory broadcast successfully dispatched to 142 registered farmers in Muñoz & Nueva Ecija!"
+                                broadcastSuccessMessage = "Advisory broadcast successfully dispatched from The Department of Soil Science (CLSU) to all registered farmers!"
                             }
                         )
                     }
@@ -480,14 +605,14 @@ fun AdminDashboardScreen(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = "Immutable Security & Personnel Audit Logs",
+                                        text = "CLSU Soil Science Administrative & Security Audit",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFF263238)
                                     )
                                 }
                                 Text(
-                                    text = "Every administrative access and policy change is cryptographically logged for DA Compliance.",
+                                    text = "Every farmer accreditation, status change, and advisory broadcast by Head Arjay Aquino & personnel is cryptographically logged.",
                                     fontSize = 11.sp,
                                     color = Color(0xFF546E7A),
                                     modifier = Modifier.padding(top = 2.dp)
@@ -513,14 +638,76 @@ private fun AdminOverviewTab(farmerRegistry: List<FarmerRegistryItem>) {
     val totalHectares = farmerRegistry.sumOf { it.farmSizeHa }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Department Header Banner
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            shape = RoundedCornerShape(14.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0D47A1)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.School,
+                            contentDescription = null,
+                            tint = Color(0xFFFFD54F),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "The Department of Soil Science",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0D47A1)
+                        )
+                        Text(
+                            text = "College of Agriculture, Central Luzon State University",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF2E7D32)
+                        )
+                        Text(
+                            text = "Head of Department: Arjay Aquino",
+                            fontSize = 11.sp,
+                            color = Color(0xFF455A64)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(color = Color(0xFFECEFF1))
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Leading agricultural research, regional soil fertility mapping, customized nutrient formulations, and precision soil-certified farmer accreditation across Central Luzon.",
+                    fontSize = 11.sp,
+                    color = Color(0xFF616161),
+                    lineHeight = 15.sp
+                )
+            }
+        }
+
+        // Section Title
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "Municipality Agronomic Snapshot",
-                fontSize = 15.sp,
+                text = "Central Luzon Regional Agronomic Metrics",
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF0D47A1)
             )
@@ -531,7 +718,7 @@ private fun AdminOverviewTab(farmerRegistry: List<FarmerRegistryItem>) {
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "Muñoz, Nueva Ecija",
+                    text = "CLSU Soil Science Hub",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF0D47A1)
@@ -545,20 +732,20 @@ private fun AdminOverviewTab(farmerRegistry: List<FarmerRegistryItem>) {
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             MetricKpiCard(
-                title = "Registered Farmers",
-                value = "${farmerRegistry.size + 138}",
-                subtitle = "+12 enrolled this month",
-                icon = Icons.Default.Person,
+                title = "Accredited Farmers",
+                value = "${farmerRegistry.size}",
+                subtitle = "Active in CLSU/RSBSA Roster",
+                icon = Icons.Default.People,
                 cardColor = Color(0xFFE8F5E9),
                 accentColor = Color(0xFF2E7D32),
                 modifier = Modifier.weight(1f)
             )
 
             MetricKpiCard(
-                title = "Mapped Land Area",
-                value = String.format("%.1f Ha", totalHectares + 472.4),
-                subtitle = "GPS Polygon Verified",
-                icon = Icons.Default.Map,
+                title = "Total Verified Land",
+                value = String.format("%.1f ha", totalHectares),
+                subtitle = "Analyzed Rice Farmland",
+                icon = Icons.Default.Landscape,
                 cardColor = Color(0xFFE3F2FD),
                 accentColor = Color(0xFF1565C0),
                 modifier = Modifier.weight(1f)
@@ -569,73 +756,31 @@ private fun AdminOverviewTab(farmerRegistry: List<FarmerRegistryItem>) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            val approvedCount = farmerRegistry.count { it.subsidyStatus.contains("Approved", ignoreCase = true) }
+            val approvedPercent = if (farmerRegistry.isNotEmpty()) (approvedCount * 100) / farmerRegistry.size else 0
+
             MetricKpiCard(
-                title = "RCEF Vouchers",
-                value = "94.2%",
-                subtitle = "134 / 142 Distributed",
-                icon = Icons.Default.FactCheck,
+                title = "CLSU Accreditation",
+                value = "$approvedPercent%",
+                subtitle = "$approvedCount of ${farmerRegistry.size} Approved",
+                icon = Icons.Default.Verified,
                 cardColor = Color(0xFFFFF3E0),
                 accentColor = Color(0xFFE65100),
                 modifier = Modifier.weight(1f)
             )
 
             MetricKpiCard(
-                title = "Dominant Soil Class",
-                value = "Maligaya Clay",
-                subtitle = "Avg pH 6.1 (Optimal)",
-                icon = Icons.Default.Science,
+                title = "Soil Analysis Rate",
+                value = "94%",
+                subtitle = "Soil-Tested Profiles",
+                icon = Icons.Default.Assessment,
                 cardColor = Color(0xFFF3E5F5),
                 accentColor = Color(0xFF7B1FA2),
                 modifier = Modifier.weight(1f)
             )
         }
 
-        // Quick Alert Status Banner
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFDE7)),
-            shape = RoundedCornerShape(12.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFF176))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFFFF9C4)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = Color(0xFFF57F17),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Active Weather & Nutrient Advisory",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE65100)
-                    )
-                    Text(
-                        text = "Monsoon rain advisory active. Farmers advised to hold urea topdressing until sunny breaks to prevent nutrient leaching.",
-                        fontSize = 11.sp,
-                        color = Color(0xFF424242),
-                        lineHeight = 15.sp
-                    )
-                }
-            }
-        }
-
-        // Top Varieties Table
+        // Varieties Distribution
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -643,30 +788,18 @@ private fun AdminOverviewTab(farmerRegistry: List<FarmerRegistryItem>) {
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "🌾 Certified Rice Varieties in Muñoz Zone",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF212121)
-                    )
-                    Text(
-                        text = "Wet Season 2026",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF757575)
-                    )
-                }
+                Text(
+                    text = "Most Adopted Rice Varieties (Central Luzon / Muñoz)",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF212121)
+                )
                 Spacer(modifier = Modifier.height(10.dp))
 
-                VarietyShareRow("NSIC Rc 222 (Tubigan 21)", "High Yielding Inbred", "48% adoption", 0.48f, Color(0xFF2E7D32))
-                VarietyShareRow("NSIC Rc 160 (Tubigan 14)", "Premium Soft Eating Quality", "26% adoption", 0.26f, Color(0xFF1976D2))
-                VarietyShareRow("Mestiso 20 / Mestiso 29", "Commercial Hybrid Seed", "16% adoption", 0.16f, Color(0xFFF57C00))
-                VarietyShareRow("Green Super Rice (NSIC Rc 480)", "Drought/Submergence Tolerant", "10% adoption", 0.10f, Color(0xFF7B1FA2))
+                VarietyShareRow("NSIC Rc 222 (Tubigan 21)", "High yielding in irrigated lowland", "42%", 0.42f, Color(0xFF2E7D32))
+                VarietyShareRow("NSIC Rc 160 (Tubigan 14)", "Premium grain quality & aromatic", "28%", 0.28f, Color(0xFF1565C0))
+                VarietyShareRow("NSIC Rc 480 (GSR 8)", "Green super rice / drought tolerant", "18%", 0.18f, Color(0xFFE65100))
+                VarietyShareRow("Others (Rc 216, PSB Rc 10)", "Local traditional & specialty varieties", "12%", 0.12f, Color(0xFF7B1FA2))
             }
         }
     }
@@ -685,85 +818,91 @@ private fun MetricKpiCard(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = cardColor),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = title,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = accentColor,
-                    maxLines = 1
-                )
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(30.dp)
                         .clip(CircleShape)
-                        .background(accentColor.copy(alpha = 0.15f)),
+                        .background(Color.White.copy(alpha = 0.7f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = accentColor,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(6.dp))
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
                 text = value,
-                fontSize = 17.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
+                color = accentColor
+            )
+
+            Text(
+                text = title,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
                 color = Color(0xFF212121)
             )
-            Spacer(modifier = Modifier.height(2.dp))
+
             Text(
                 text = subtitle,
-                fontSize = 10.sp,
+                fontSize = 9.5.sp,
                 color = Color(0xFF616161),
-                maxLines = 1
+                lineHeight = 12.sp
             )
         }
     }
 }
 
 @Composable
-private fun VarietyShareRow(name: String, desc: String, share: String, progress: Float, color: Color) {
-    Column(modifier = Modifier.padding(vertical = 5.dp)) {
+private fun VarietyShareRow(
+    name: String,
+    desc: String,
+    share: String,
+    progress: Float,
+    color: Color
+) {
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF212121))
-                Text(desc, fontSize = 10.sp, color = Color(0xFF757575))
+                Text(name, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF212121))
+                Text(desc, fontSize = 9.sp, color = Color(0xFF757575))
             }
-            Text(share, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = color)
+            Text(share, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = color)
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Box(
+        Spacer(modifier = Modifier.height(3.dp))
+        LinearProgressIndicator(
+            progress = { progress },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(Color(0xFFEEEEEE))
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(progress)
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(color)
-            )
-        }
+                .height(5.dp)
+                .clip(RoundedCornerShape(3.dp)),
+            color = color,
+            trackColor = Color(0xFFEEEEEE),
+        )
     }
 }
 
@@ -772,68 +911,95 @@ private fun FarmerRosterHeader(
     searchQuery: String,
     onSearchChange: (String) -> Unit,
     selectedFilter: String,
-    onFilterChange: (String) -> Unit
+    onFilterChange: (String) -> Unit,
+    farmerRegistry: List<FarmerRegistryItem>
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchChange,
-            placeholder = { Text("Mag-search ng Magsasaka, RSBSA ID, o Barangay...", fontSize = 12.sp, color = Color(0xFF757575)) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF1565C0)) },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchChange("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear Search", tint = Color(0xFF757575))
-                    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "Department of Soil Science — Farmer Roster",
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0D47A1)
+                    )
+                    Text(
+                        text = "Manage accreditation, approve soil vouchers, and update status",
+                        fontSize = 10.5.sp,
+                        color = Color(0xFF616161)
+                    )
                 }
-            },
-            singleLine = true,
-            textStyle = TextStyle(color = Color(0xFF212121), fontSize = 13.sp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("input_admin_farmer_search"),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color(0xFF212121),
-                unfocusedTextColor = Color(0xFF212121),
-                focusedBorderColor = Color(0xFF1565C0),
-                unfocusedBorderColor = Color(0xFFB0BEC5),
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
-            ),
-            shape = RoundedCornerShape(12.dp)
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            val filterOptions = listOf(
-                "All" to "Lahat",
-                "Approved" to "RSBSA Approved",
-                "Voucher" to "Voucher Ready",
-                "Review" to "For Verification"
-            )
-            items(filterOptions) { (key, label) ->
-                val isSelected = selectedFilter == key
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(if (isSelected) Color(0xFF0D47A1) else Color.White)
-                        .border(
-                            width = 1.dp,
-                            color = if (isSelected) Color(0xFF0D47A1) else Color(0xFFCFD8DC),
-                            shape = RoundedCornerShape(20.dp)
-                        )
-                        .clickable { onFilterChange(key) }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFE8F5E9))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = label,
+                        text = "${farmerRegistry.size} Farmers",
                         fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) Color.White else Color(0xFF37474F)
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF2E7D32)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Search Box
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("admin_search_farmer_input"),
+                placeholder = { Text("Search by name, RSBSA ID, or Barangay...", fontSize = 12.sp) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color(0xFF757575),
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { onSearchChange("") }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(10.dp),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Status Filter Chips
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                listOf("All", "Approved", "Under Review", "Needs Soil").forEach { filter ->
+                    val isSelected = selectedFilter == filter
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onFilterChange(filter) },
+                        label = { Text(filter, fontSize = 10.5.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF1565C0),
+                            selectedLabelColor = Color.White
+                        )
                     )
                 }
             }
@@ -842,114 +1008,165 @@ private fun FarmerRosterHeader(
 }
 
 @Composable
-private fun FarmerRegistryCard(farmer: FarmerRegistryItem) {
+private fun FarmerRegistryCard(
+    farmer: FarmerRegistryItem,
+    onQuickApprove: () -> Unit,
+    onChangeStatusClick: () -> Unit
+) {
+    val isApproved = farmer.subsidyStatus.contains("Approved", ignoreCase = true)
+    val statusBgColor = when {
+        isApproved -> Color(0xFFE8F5E9)
+        farmer.subsidyStatus.contains("Under Review", ignoreCase = true) -> Color(0xFFFFF3E0)
+        farmer.subsidyStatus.contains("Needs", ignoreCase = true) -> Color(0xFFFBE9E7)
+        else -> Color(0xFFE3F2FD)
+    }
+    val statusTextColor = when {
+        isApproved -> Color(0xFF2E7D32)
+        farmer.subsidyStatus.contains("Under Review", ignoreCase = true) -> Color(0xFFE65100)
+        farmer.subsidyStatus.contains("Needs", ignoreCase = true) -> Color(0xFFD84315)
+        else -> Color(0xFF1565C0)
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("admin_farmer_card_${farmer.id}"),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(FarmGreenPrimary.copy(alpha = 0.12f)),
+                            .background(Color(0xFFE8F5E9)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = FarmGreenPrimary,
-                            modifier = Modifier.size(20.dp)
+                        Text(
+                            text = farmer.fullName.take(1),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2E7D32)
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        Text(farmer.fullName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF212121))
-                        Text("RSBSA: ${farmer.rsbsaId}", fontSize = 10.sp, color = Color(0xFF757575))
+                        Text(
+                            text = farmer.fullName,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF212121)
+                        )
+                        Text(
+                            text = "RSBSA ID: ${farmer.rsbsaId}",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF0D47A1)
+                        )
                     }
                 }
 
-                val badgeBg = when {
-                    farmer.subsidyStatus.contains("Approved", ignoreCase = true) -> Color(0xFFE8F5E9)
-                    farmer.subsidyStatus.contains("Voucher", ignoreCase = true) -> Color(0xFFE3F2FD)
-                    else -> Color(0xFFFFF3E0)
-                }
-                val badgeText = when {
-                    farmer.subsidyStatus.contains("Approved", ignoreCase = true) -> Color(0xFF2E7D32)
-                    farmer.subsidyStatus.contains("Voucher", ignoreCase = true) -> Color(0xFF1565C0)
-                    else -> Color(0xFFE65100)
-                }
-
+                // Status Badge
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(badgeBg)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(statusBgColor)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = farmer.subsidyStatus,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = badgeText
+                        color = statusTextColor
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(color = Color(0xFFF0F0F0))
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = Color(0xFFF5F5F5))
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Details Grid
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Lokasyon", fontSize = 9.sp, color = Color(0xFF757575))
-                    Text(
-                        text = "${farmer.barangay}, ${farmer.municipality}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF37474F),
-                        maxLines = 1
-                    )
+                Column {
+                    Text("LOKASYON", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9E9E9E))
+                    Text("${farmer.barangay}, ${farmer.municipality}", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color(0xFF424242))
+                }
+                Column {
+                    Text("SUKAT NG LUPA", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9E9E9E))
+                    Text("${farmer.farmSizeHa} ha", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                }
+                Column {
+                    Text("PANGUNAHING BINHI", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9E9E9E))
+                    Text(farmer.cropVariety, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color(0xFF424242))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("HULING SOIL TEST / AKTIBO", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9E9E9E))
+                    Text("${farmer.lastActiveDate} • ${farmer.soilType}", fontSize = 10.5.sp, color = Color(0xFF616161))
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("URI NG LUPA", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF9E9E9E))
+                    Text(farmer.soilType, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0D47A1))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Action Buttons: Approve & Change Status
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (!isApproved) {
+                    Button(
+                        onClick = onQuickApprove,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(36.dp)
+                            .testTag("btn_approve_farmer_${farmer.id}"),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Approve Farmer", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
 
-                Column(
-                    modifier = Modifier.weight(0.7f),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                OutlinedButton(
+                    onClick = onChangeStatusClick,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0D47A1)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp)
+                        .testTag("btn_change_status_${farmer.id}"),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                 ) {
-                    Text("Sukat ng Lupa", fontSize = 9.sp, color = Color(0xFF757575))
-                    Text(
-                        text = "${farmer.farmSizeHa} Ha",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2E7D32)
-                    )
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Text("Binhi / Barayti", fontSize = 9.sp, color = Color(0xFF757575))
-                    Text(
-                        text = farmer.cropVariety,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF37474F),
-                        maxLines = 1
-                    )
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF0D47A1))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Change Status", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -962,7 +1179,7 @@ private fun RegionalFertilizerDemandTab(farmerRegistry: List<FarmerRegistryItem>
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            text = "Aggregated Municipal Fertilizer Demands (Wet Season)",
+            text = "CLSU Department of Soil Science Fertilizer Demands (Wet Season)",
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF0D47A1)
@@ -982,7 +1199,7 @@ private fun RegionalFertilizerDemandTab(farmerRegistry: List<FarmerRegistryItem>
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("Total Verified Area", fontSize = 11.sp, color = Color(0xFFBBDEFB))
+                    Text("Total Verified Area (Muñoz Zone)", fontSize = 11.sp, color = Color(0xFFBBDEFB))
                     Text(String.format("%.1f Hectares", totalHa), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
                 Box(
@@ -1065,101 +1282,26 @@ private fun AdvisoryDispatcherTab(
         shape = RoundedCornerShape(14.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFE3F2FD)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Campaign,
-                        contentDescription = null,
-                        tint = Color(0xFF1565C0),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = "Broadcast Farmer Advisory",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0D47A1)
-                    )
-                    Text(
-                        text = "Dispatches push SMS & agronomy notices directly to farmers",
-                        fontSize = 10.sp,
-                        color = Color(0xFF546E7A)
-                    )
-                }
+                Icon(Icons.Default.Campaign, contentDescription = null, tint = Color(0xFF1565C0), modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Broadcast Municipal Advisory", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF212121))
             }
+            Text("Send real-time alerts directly to all registered farmers' home feed.", fontSize = 11.sp, color = Color(0xFF757575))
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Priority Selector Pills
-            Text("Advisory Priority Level", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF37474F))
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf(
-                    "High Advisory" to Color(0xFFD32F2F),
-                    "Weather Alert" to Color(0xFFE65100),
-                    "Fertilizer Tip" to Color(0xFF2E7D32)
-                ).forEach { (pName, pColor) ->
-                    val isSelected = priority == pName
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isSelected) pColor.copy(alpha = 0.15f) else Color(0xFFF5F5F5))
-                            .border(
-                                width = if (isSelected) 1.5.dp else 1.dp,
-                                color = if (isSelected) pColor else Color(0xFFE0E0E0),
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                            .clickable { onPriorityChange(pName) }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = pName,
-                            fontSize = 10.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) pColor else Color(0xFF616161)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = title,
                 onValueChange = onTitleChange,
-                label = { Text("Advisory Headline", fontSize = 12.sp, color = Color(0xFF1565C0), fontWeight = FontWeight.Medium) },
-                placeholder = { Text("hal. Flash Flood Warning / Basal Fertilizer Schedule", fontSize = 12.sp, color = Color(0xFF757575)) },
-                singleLine = true,
-                textStyle = TextStyle(color = Color(0xFF0D47A1), fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                label = { Text("Advisory Title / Paksa") },
+                placeholder = { Text("e.g. Babala sa Brown Planthopper") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("input_broadcast_title"),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color(0xFF0D47A1),
-                    unfocusedTextColor = Color(0xFF1E211D),
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color(0xFFF8FAFC),
-                    focusedBorderColor = Color(0xFF1565C0),
-                    unfocusedBorderColor = Color(0xFF90CAF9),
-                    cursorColor = Color(0xFF0D47A1),
-                    focusedLabelColor = Color(0xFF1565C0),
-                    unfocusedLabelColor = Color(0xFF37474F)
-                ),
-                shape = RoundedCornerShape(10.dp)
+                    .testTag("admin_advisory_title"),
+                shape = RoundedCornerShape(8.dp),
+                singleLine = true
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -1167,41 +1309,56 @@ private fun AdvisoryDispatcherTab(
             OutlinedTextField(
                 value = message,
                 onValueChange = onMessageChange,
-                label = { Text("Advisory Message / Action Instructions", fontSize = 12.sp, color = Color(0xFF1565C0), fontWeight = FontWeight.Medium) },
-                placeholder = { Text("Isulat ang advisory instructions para sa mga magsasaka...", fontSize = 12.sp, color = Color(0xFF757575)) },
-                minLines = 3,
-                textStyle = TextStyle(color = Color(0xFF1E211D), fontSize = 13.sp, fontWeight = FontWeight.Normal),
+                label = { Text("Advisory Message / Detalye") },
+                placeholder = { Text("Isulat ang kumpletong tagubilin sa mga magsasaka...") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("input_broadcast_message"),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color(0xFF1E211D),
-                    unfocusedTextColor = Color(0xFF1E211D),
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color(0xFFF8FAFC),
-                    focusedBorderColor = Color(0xFF1565C0),
-                    unfocusedBorderColor = Color(0xFF90CAF9),
-                    cursorColor = Color(0xFF0D47A1),
-                    focusedLabelColor = Color(0xFF1565C0),
-                    unfocusedLabelColor = Color(0xFF37474F)
-                ),
-                shape = RoundedCornerShape(10.dp)
+                    .testTag("admin_advisory_msg"),
+                shape = RoundedCornerShape(8.dp),
+                minLines = 3,
+                maxLines = 5
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text("Priority Level:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF424242))
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("NORMAL", "URGENT", "WEATHER_ALERT").forEach { level ->
+                    val isSelected = priority == level
+                    val color = when (level) {
+                        "WEATHER_ALERT" -> Color(0xFF0288D1)
+                        "URGENT" -> Color(0xFFC62828)
+                        else -> Color(0xFF2E7D32)
+                    }
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onPriorityChange(level) },
+                        label = { Text(level, fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = color.copy(alpha = 0.15f),
+                            selectedLabelColor = color
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             if (successMsg != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFE8F5E9))
-                        .padding(10.dp)
+                Surface(
+                    color = Color(0xFFE8F5E9),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = "✅ $successMsg",
                         color = Color(0xFF2E7D32),
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(10.dp),
                         fontWeight = FontWeight.Bold
                     )
                 }

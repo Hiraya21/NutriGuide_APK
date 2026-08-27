@@ -211,7 +211,9 @@ fun RiceFarmAssistantApp(
             auditLogs = auditLogs,
             currentLanguage = currentLanguage,
             onBackToFarmerView = { viewModel.closeAdminDashboard() },
-            onLogout = { viewModel.promptLogout() }
+            onLogout = { viewModel.promptLogout() },
+            onUpdateFarmerStatus = { id, status -> viewModel.updateFarmerStatus(id, status) },
+            onApproveFarmer = { id -> viewModel.approveFarmer(id) }
         )
     } else {
         Scaffold(
@@ -403,7 +405,14 @@ fun RiceFarmAssistantApp(
                             onSearchChange = { viewModel.setHistorySearchQuery(it) },
                             onDeleteFarm = { farm -> viewModel.deleteFarmRecord(farm) },
                             onDeleteAllFarms = { viewModel.deleteAllFarms() },
+                            currentUser = currentUser,
+                            onOpenAuthModal = { viewModel.openAuthModal() },
+                            onLogout = { viewModel.promptLogout() },
+                            onOpenAdminDashboard = { viewModel.openAdminDashboard() },
                             onOpenDeleteAccount = { viewModel.openDeleteAccountModal() },
+                            onUpdateContactInfo = { name, phone, prov, mun, crop, area, rsbsa, agency ->
+                                viewModel.updateContactInfo(name, phone, prov, mun, crop, area, rsbsa, agency)
+                            },
                             currentLanguage = currentLanguage,
                             onLanguageSelected = { viewModel.setLanguage(it) }
                         )

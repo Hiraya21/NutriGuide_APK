@@ -118,11 +118,11 @@ fun TopNavBar(
                 AppLanguage.CEBUANO -> "Giya ug Libro"
             }
             else -> when (currentLanguage) {
-                AppLanguage.ENGLISH -> "Farm Records"
-                AppLanguage.TAGALOG -> "Tala ng Bukid"
-                AppLanguage.TAGLISH -> "Farm History"
-                AppLanguage.ILOCANO -> "Nakalabas a Rekord"
-                AppLanguage.CEBUANO -> "Talaan sa Yuta"
+                AppLanguage.ENGLISH -> "Profile & Records"
+                AppLanguage.TAGALOG -> "Profile at Talaan"
+                AppLanguage.TAGLISH -> "Profile & Farm History"
+                AppLanguage.ILOCANO -> "Profile ken Rekord"
+                AppLanguage.CEBUANO -> "Profile ug Talaan"
             }
         }
     }

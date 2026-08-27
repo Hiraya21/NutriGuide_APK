@@ -246,6 +246,44 @@ class FarmViewModel(application: Application) : AndroidViewModel(application) {
         return result
     }
 
+    fun updateFarmerStatus(farmerId: String, newStatus: String) {
+        val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+        authRepository.updateFarmerStatus(farmerId, newStatus, adminName)
+    }
+
+    fun approveFarmer(farmerId: String) {
+        val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+        authRepository.approveFarmer(farmerId, adminName)
+    }
+
+    fun updateContactInfo(
+        fullName: String,
+        phoneNumber: String,
+        province: String,
+        municipality: String,
+        primaryCrop: String,
+        farmAreaHectares: Double,
+        rsbsaNumber: String = "",
+        agency: String = ""
+    ) {
+        val updated = authRepository.updateContactInfo(
+            fullName = fullName,
+            phoneNumber = phoneNumber,
+            province = province,
+            municipality = municipality,
+            primaryCrop = primaryCrop,
+            farmAreaHectares = farmAreaHectares,
+            rsbsaNumber = rsbsaNumber,
+            agency = agency
+        )
+        if (updated.farmAreaHectares > 0) {
+            _fertilizerFarmArea.value = updated.farmAreaHectares.toString()
+        }
+        if (updated.primaryCrop.isNotBlank()) {
+            _selectedCrop.value = updated.primaryCrop
+        }
+    }
+
     fun logout() {
         authRepository.logout()
         _isAdminDashboardOpen.value = false

@@ -20,7 +20,10 @@ data class UserAccount(
     val primaryCrop: String = "Inbred Rice (NSIC Rc 222)",
     val phoneNumber: String = "0917-123-4567",
     val profilePhotoUrl: String = "",
-    val dateRegistered: String = "Aug 2026"
+    val dateRegistered: String = "Aug 2026",
+    val approvalStatus: String = "Approved (CLSU Soil-Certified)",
+    val approvedBy: String = "Arjay Aquino (Head, Dept. of Soil Science, CLSU)",
+    val approvalDate: String = "Aug 2026"
 ) {
     val isAdmin: Boolean get() = role == UserRole.AUTHORIZED_ADMIN || role == UserRole.AGRICULTURAL_TECHNOLOGIST
     val displayRoleLabel: String get() = when (role) {
@@ -28,6 +31,10 @@ data class UserAccount(
         UserRole.AUTHORIZED_ADMIN -> "Authorized DA Admin"
         UserRole.AGRICULTURAL_TECHNOLOGIST -> "PhilRice Extension Specialist"
     }
+
+    val isApprovedByAdmin: Boolean get() = approvalStatus.contains("Approved", ignoreCase = true) ||
+            approvalStatus.contains("Certified", ignoreCase = true) ||
+            approvalStatus.contains("Distributed", ignoreCase = true)
 }
 
 data class AdminAuditLog(

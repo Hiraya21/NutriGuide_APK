@@ -1599,9 +1599,9 @@ private fun AdminLoginForm(
         ) {
             OutlinedButton(
                 onClick = {
-                    identifier = "admin@da.gov.ph"
+                    identifier = "admin@clsu.edu.ph"
                     passcode = "admin123"
-                    onAdminLogin("admin@da.gov.ph", "admin123")
+                    onAdminLogin("admin@clsu.edu.ph", "admin123")
                 },
                 modifier = Modifier
                     .weight(1f)
@@ -1609,8 +1609,8 @@ private fun AdminLoginForm(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🏛️ DA MAO Officer", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0D47A1))
-                    Text("admin@da.gov.ph", fontSize = 9.sp, color = Color(0xFF616161))
+                    Text("🎓 Arjay Aquino (CLSU)", fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0D47A1), maxLines = 1)
+                    Text("Head, Dept. of Soil Science", fontSize = 8.5.sp, color = Color(0xFF616161), maxLines = 1)
                 }
             }
 
@@ -1626,8 +1626,8 @@ private fun AdminLoginForm(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🔬 PhilRice Agronomist", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0D47A1))
-                    Text("corpuz.m@philrice.gov.ph", fontSize = 9.sp, color = Color(0xFF616161))
+                    Text("🔬 PhilRice Agronomist", fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0D47A1), maxLines = 1)
+                    Text("Dr. Maria Elena Corpuz", fontSize = 8.5.sp, color = Color(0xFF616161), maxLines = 1)
                 }
             }
         }

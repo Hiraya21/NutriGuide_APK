@@ -901,22 +901,22 @@ private fun AdminPersonnelLoginTab(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 PersonnelCredentialCard(
-                    name = "Engr. Roberto Santos",
-                    badge = "DA-MAO-2026-09",
-                    designation = "Municipal Agricultural Officer",
-                    email = "admin@da.gov.ph",
+                    name = "Arjay Aquino",
+                    badge = "CLSU-DSS-HEAD-01",
+                    designation = "Head, Dept. of Soil Science (CLSU)",
+                    email = "admin@clsu.edu.ph",
                     passcode = "admin123",
                     onSelect = {
-                        personnelIdOrEmail = "DA-MAO-2026-09"
+                        personnelIdOrEmail = "admin@clsu.edu.ph"
                         passcode = "admin123"
-                        onAdminLogin("DA-MAO-2026-09", "admin123")
+                        onAdminLogin("admin@clsu.edu.ph", "admin123")
                     }
                 )
 
                 PersonnelCredentialCard(
                     name = "Dr. Maria Elena Corpuz",
                     badge = "PHILRICE-TECH-404",
-                    designation = "PhilRice Senior Agronomist",
+                    designation = "Senior Agronomist (PhilRice & CLSU)",
                     email = "corpuz.m@philrice.gov.ph",
                     passcode = "palay2026",
                     onSelect = {

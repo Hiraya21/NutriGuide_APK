@@ -31,13 +31,31 @@ class AuthRepository(context: Context) {
 
     private val authorizedPersonnelList = listOf(
         AuthorizedPersonnelCredential(
+            personnelId = "CLSU-DSS-HEAD-01",
+            emailOrUsername = "admin@clsu.edu.ph",
+            passcode = "admin123",
+            fullName = "Arjay Aquino",
+            role = UserRole.AUTHORIZED_ADMIN,
+            agency = "The Department of Soil Science, College of Agriculture, Central Luzon State University",
+            designation = "Head of Department, Soil Science"
+        ),
+        AuthorizedPersonnelCredential(
             personnelId = "DA-MAO-2026-09",
             emailOrUsername = "admin@da.gov.ph",
             passcode = "admin123",
-            fullName = "Engr. Roberto Santos",
+            fullName = "Arjay Aquino",
             role = UserRole.AUTHORIZED_ADMIN,
-            agency = "Department of Agriculture - Region III",
-            designation = "Municipal Agricultural Officer (MAO)"
+            agency = "The Department of Soil Science, College of Agriculture, Central Luzon State University",
+            designation = "Head of Department, Soil Science"
+        ),
+        AuthorizedPersonnelCredential(
+            personnelId = "CLSU-AGRI-2026",
+            emailOrUsername = "arjay.aquino@clsu.edu.ph",
+            passcode = "admin123",
+            fullName = "Arjay Aquino",
+            role = UserRole.AUTHORIZED_ADMIN,
+            agency = "The Department of Soil Science, College of Agriculture, Central Luzon State University",
+            designation = "Head of Department, Soil Science"
         ),
         AuthorizedPersonnelCredential(
             personnelId = "PHILRICE-TECH-404",
@@ -45,17 +63,8 @@ class AuthRepository(context: Context) {
             passcode = "palay2026",
             fullName = "Dr. Maria Elena Corpuz",
             role = UserRole.AGRICULTURAL_TECHNOLOGIST,
-            agency = "DA-PhilRice Central Experiment Station",
+            agency = "DA-PhilRice & CLSU Soil Research Station",
             designation = "Senior Agronomist & Extension Specialist"
-        ),
-        AuthorizedPersonnelCredential(
-            personnelId = "DA-RFO3-EX88",
-            emailOrUsername = "rfo3.supervisor@da.gov.ph",
-            passcode = "da2026ph",
-            fullName = "Dir. Arthur Del Rosario",
-            role = UserRole.AUTHORIZED_ADMIN,
-            agency = "DA Regional Field Office III",
-            designation = "Regional Executive Director"
         )
     )
 
@@ -103,10 +112,14 @@ class AuthRepository(context: Context) {
         val badge = prefs.getString("user_badge", "") ?: ""
         val agency = prefs.getString("user_agency", "DA-PhilRice") ?: "DA-PhilRice"
         val prov = prefs.getString("user_prov", "Nueva Ecija") ?: "Nueva Ecija"
-        val mun = prefs.getString("user_mun", "Muñoz") ?: "Muñoz"
+        val mun = prefs.getString("user_mun", "Science City of Muñoz") ?: "Science City of Muñoz"
         val area = prefs.getFloat("user_area", 2.4f).toDouble()
-        val crop = prefs.getString("user_crop", "Inbred Rice") ?: "Inbred Rice"
+        val crop = prefs.getString("user_crop", "Lowland Irrigated Rice (NSIC Rc 222)") ?: "Lowland Irrigated Rice (NSIC Rc 222)"
         val phone = prefs.getString("user_phone", "0917-123-4567") ?: "0917-123-4567"
+        val dateReg = prefs.getString("user_date_reg", "Aug 2026") ?: "Aug 2026"
+        val approvalStatus = prefs.getString("user_approval_status", "Approved (CLSU Soil-Certified)") ?: "Approved (CLSU Soil-Certified)"
+        val approvedBy = prefs.getString("user_approved_by", "Arjay Aquino (Head, Dept. of Soil Science, CLSU)") ?: "Arjay Aquino (Head, Dept. of Soil Science, CLSU)"
+        val approvalDate = prefs.getString("user_approval_date", "Aug 2026") ?: "Aug 2026"
 
         return UserAccount(
             id = id,
@@ -120,7 +133,11 @@ class AuthRepository(context: Context) {
             municipality = mun,
             farmAreaHectares = area,
             primaryCrop = crop,
-            phoneNumber = phone
+            phoneNumber = phone,
+            dateRegistered = dateReg,
+            approvalStatus = approvalStatus,
+            approvedBy = approvedBy,
+            approvalDate = approvalDate
         )
     }
 
@@ -139,7 +156,52 @@ class AuthRepository(context: Context) {
             .putFloat("user_area", user.farmAreaHectares.toFloat())
             .putString("user_crop", user.primaryCrop)
             .putString("user_phone", user.phoneNumber)
+            .putString("user_date_reg", user.dateRegistered)
+            .putString("user_approval_status", user.approvalStatus)
+            .putString("user_approved_by", user.approvedBy)
+            .putString("user_approval_date", user.approvalDate)
             .apply()
+    }
+
+    fun updateContactInfo(
+        fullName: String,
+        phoneNumber: String,
+        province: String,
+        municipality: String,
+        primaryCrop: String,
+        farmAreaHectares: Double,
+        rsbsaNumber: String = "",
+        agency: String = ""
+    ): UserAccount {
+        val current = _currentUser.value
+        val updated = current.copy(
+            fullName = fullName.ifBlank { current.fullName },
+            phoneNumber = phoneNumber.ifBlank { current.phoneNumber },
+            province = province.ifBlank { current.province },
+            municipality = municipality.ifBlank { current.municipality },
+            primaryCrop = primaryCrop.ifBlank { current.primaryCrop },
+            farmAreaHectares = if (farmAreaHectares > 0.0) farmAreaHectares else current.farmAreaHectares,
+            rsbsaNumber = if (rsbsaNumber.isNotBlank()) rsbsaNumber else current.rsbsaNumber,
+            agency = if (agency.isNotBlank()) agency else current.agency
+        )
+        _currentUser.value = updated
+        savePersistedUser(updated, isActiveSession = true)
+
+        // Also update matching item in farmer registry
+        _farmerRegistry.value = _farmerRegistry.value.map { item ->
+            if (item.id == updated.id || item.fullName.equals(current.fullName, ignoreCase = true) || item.rsbsaId == current.rsbsaNumber) {
+                item.copy(
+                    fullName = updated.fullName,
+                    rsbsaId = updated.rsbsaNumber.ifBlank { item.rsbsaId },
+                    municipality = updated.municipality,
+                    farmSizeHa = updated.farmAreaHectares,
+                    cropVariety = updated.primaryCrop
+                )
+            } else {
+                item
+            }
+        }
+        return updated
     }
 
     // Farmer Login
@@ -278,6 +340,48 @@ class AuthRepository(context: Context) {
         _currentUser.value = defaultFarmer
     }
 
+    fun updateFarmerStatus(farmerId: String, newStatus: String, adminName: String = "Arjay Aquino") {
+        var targetFarmerName = ""
+        var targetFarmerRsbsa = ""
+
+        _farmerRegistry.value = _farmerRegistry.value.map { farmer ->
+            if (farmer.id == farmerId) {
+                targetFarmerName = farmer.fullName
+                targetFarmerRsbsa = farmer.rsbsaId
+                farmer.copy(subsidyStatus = newStatus)
+            } else {
+                farmer
+            }
+        }
+
+        // If currently logged in user matches this farmer, update their status too!
+        val curr = _currentUser.value
+        if (curr.id == farmerId || curr.fullName.equals(targetFarmerName, ignoreCase = true) || (targetFarmerRsbsa.isNotBlank() && curr.rsbsaNumber == targetFarmerRsbsa)) {
+            val updatedUser = curr.copy(
+                approvalStatus = newStatus,
+                approvedBy = "$adminName (Head, Dept. of Soil Science, CLSU)",
+                approvalDate = SimpleDateFormat("MMM yyyy", Locale.US).format(Date())
+            )
+            _currentUser.value = updatedUser
+            savePersistedUser(updatedUser, isActiveSession = true)
+        }
+
+        // Add audit log entry
+        val log = AdminAuditLog(
+            id = UUID.randomUUID().toString().take(6),
+            personnelName = adminName,
+            personnelId = "CLSU-DSS-HEAD-01",
+            action = "Updated Farmer Status to '$newStatus' for $targetFarmerName ($targetFarmerRsbsa)",
+            timestampFormatted = SimpleDateFormat("MMM dd, yyyy • h:mm a", Locale.US).format(Date()),
+            ipOrDevice = "CLSU Dept. of Soil Science Console"
+        )
+        _auditLogs.value = listOf(log) + _auditLogs.value
+    }
+
+    fun approveFarmer(farmerId: String, adminName: String = "Arjay Aquino") {
+        updateFarmerStatus(farmerId, "Approved (CLSU Soil-Certified)", adminName)
+    }
+
     fun switchRoleToFarmer() {
         _currentUser.value = defaultFarmer
         savePersistedUser(defaultFarmer, isActiveSession = true)
@@ -287,24 +391,27 @@ class AuthRepository(context: Context) {
         return listOf(
             AdminAuditLog(
                 id = "log_101",
-                personnelName = "Engr. Roberto Santos",
-                personnelId = "DA-MAO-2026-09",
-                action = "Generated Regional Fertilizer Allocation Vouchers for Muñoz",
-                timestampFormatted = "Aug 24, 2026 • 2:15 PM"
+                personnelName = "Arjay Aquino",
+                personnelId = "CLSU-DSS-HEAD-01",
+                action = "Endorsed Central Luzon Soil Fertility Map to Regional Extension Officers",
+                timestampFormatted = "Aug 26, 2026 • 9:30 AM",
+                ipOrDevice = "CLSU Soil Science Terminal"
             ),
             AdminAuditLog(
                 id = "log_102",
-                personnelName = "Dr. Maria Elena Corpuz",
-                personnelId = "PHILRICE-TECH-404",
-                action = "Broadcasted Agrometeorology Advisory for Monsoon Season (Central Luzon)",
-                timestampFormatted = "Aug 24, 2026 • 11:30 AM"
+                personnelName = "Arjay Aquino",
+                personnelId = "CLSU-DSS-HEAD-01",
+                action = "Approved RSBSA Fertilizer Subsidies & Soil Analysis for Muñoz Rice Zone",
+                timestampFormatted = "Aug 25, 2026 • 2:15 PM",
+                ipOrDevice = "CLSU Soil Science Terminal"
             ),
             AdminAuditLog(
                 id = "log_103",
-                personnelName = "Dir. Arthur Del Rosario",
-                personnelId = "DA-RFO3-EX88",
-                action = "Approved RSBSA Batch #2026-CL3 Soil Chemistry Matrix",
-                timestampFormatted = "Aug 23, 2026 • 4:45 PM"
+                personnelName = "Dr. Maria Elena Corpuz",
+                personnelId = "PHILRICE-TECH-404",
+                action = "Broadcasted Agrometeorology Advisory for Monsoon Season (Central Luzon)",
+                timestampFormatted = "Aug 24, 2026 • 11:30 AM",
+                ipOrDevice = "DA-PhilRice Experiment Station"
             )
         )
     }
