@@ -1,0 +1,1479 @@
+package com.example.ui.viewmodel
+
+import android.Manifest
+import android.app.Application
+import android.content.pm.PackageManager
+import android.os.Looper
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.data.database.AppDatabase
+import com.example.data.model.FarmRecord
+import com.example.data.repository.AgriculturalRegion
+import com.example.data.repository.AuthRepository
+import com.example.data.repository.FarmRepository
+import com.example.data.repository.GuideRepository
+import com.example.data.repository.WeatherRepository
+import com.example.domain.models.AdminAuditLog
+import com.example.domain.models.AppLanguage
+import com.example.domain.models.DailyForecastDay
+import com.example.domain.models.DisplayReadabilityMode
+import com.example.domain.models.FarmWeatherData
+import com.example.domain.models.FarmerRegistryItem
+import com.example.domain.models.FertilizerItem
+import com.example.domain.models.GuideArticle
+import com.example.domain.models.MapPoint
+import com.example.domain.models.MapUtils
+import com.example.domain.models.UserAccount
+import com.example.domain.models.UserRole
+import com.example.domain.models.WeatherRiskLevel
+import com.example.domain.models.WeatherScenario
+import com.example.domain.models.calculateFertilizerAdvisory
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.example.util.NetworkMonitor
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class FarmViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val database = AppDatabase.getDatabase(application)
+    private val repository = FarmRepository(database.farmDao())
+    val guideRepository = GuideRepository()
+
+    // Database flow
+    val allFarms: StateFlow<List<FarmRecord>> = repository.allFarms
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    // History search & stats
+    private val _historySearchQuery = MutableStateFlow("")
+    val historySearchQuery = _historySearchQuery.asStateFlow()
+
+    val filteredFarms: StateFlow<List<FarmRecord>> = combine(allFarms, historySearchQuery) { farms, query ->
+        if (query.isBlank()) farms
+        else farms.filter { it.name.contains(query, ignoreCase = true) || it.cropType.contains(query, ignoreCase = true) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val totalFarmsCount: StateFlow<Int> = combine(allFarms) { (farms) -> farms.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val totalAreaHectares: StateFlow<Double> = combine(allFarms) { (farms) ->
+        farms.fold(0.0) { acc, item -> acc + item.areaHectares }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+
+    // Language State with SharedPreferences Persistence
+    private val prefs = application.getSharedPreferences("farm_app_prefs", android.content.Context.MODE_PRIVATE)
+    private val initialLang = try {
+        AppLanguage.valueOf(prefs.getString("selected_lang", AppLanguage.ENGLISH.name) ?: AppLanguage.ENGLISH.name)
+    } catch (e: Exception) {
+        AppLanguage.ENGLISH
+    }
+    private val _currentLanguage = MutableStateFlow(initialLang)
+    val currentLanguage = _currentLanguage.asStateFlow()
+
+    // Readability & Text Contrast Mode State (Standard vs High Contrast / Extra Large for direct sunlight)
+    private val initialReadabilityMode = try {
+        DisplayReadabilityMode.valueOf(
+            prefs.getString("display_readability_mode", DisplayReadabilityMode.STANDARD.name)
+                ?: DisplayReadabilityMode.STANDARD.name
+        )
+    } catch (e: Exception) {
+        DisplayReadabilityMode.STANDARD
+    }
+    private val _displayReadabilityMode = MutableStateFlow(initialReadabilityMode)
+    val displayReadabilityMode = _displayReadabilityMode.asStateFlow()
+
+    val isHighContrastMode: StateFlow<Boolean> = combine(_displayReadabilityMode) { (mode) ->
+        mode == DisplayReadabilityMode.HIGH_CONTRAST_XL
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), initialReadabilityMode == DisplayReadabilityMode.HIGH_CONTRAST_XL)
+
+    fun setDisplayReadabilityMode(mode: DisplayReadabilityMode) {
+        _displayReadabilityMode.value = mode
+        prefs.edit().putString("display_readability_mode", mode.name).apply()
+    }
+
+    fun toggleDisplayReadabilityMode() {
+        val nextMode = if (_displayReadabilityMode.value == DisplayReadabilityMode.STANDARD) {
+            DisplayReadabilityMode.HIGH_CONTRAST_XL
+        } else {
+            DisplayReadabilityMode.STANDARD
+        }
+        setDisplayReadabilityMode(nextMode)
+    }
+
+    // Autosave & Restore Notification State
+    private val _restoredSessionNotice = MutableStateFlow<String?>(null)
+    val restoredSessionNotice = _restoredSessionNotice.asStateFlow()
+
+    fun dismissRestoredNotice() {
+        _restoredSessionNotice.value = null
+    }
+
+    // Network Connectivity & Offline Mode State
+    private val networkMonitor = NetworkMonitor(application)
+    val isDeviceOnline: StateFlow<Boolean> = networkMonitor.isOnline
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), networkMonitor.checkCurrentConnectivity())
+
+    private val _isForcedOffline = MutableStateFlow(false)
+    val isForcedOffline = _isForcedOffline.asStateFlow()
+
+    // Combined effective offline status
+    val isOfflineMode: StateFlow<Boolean> = combine(isDeviceOnline, _isForcedOffline) { online, forced ->
+        !online || forced
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), !networkMonitor.checkCurrentConnectivity())
+
+    fun toggleForcedOffline() {
+        _isForcedOffline.value = !_isForcedOffline.value
+        refreshWeatherData()
+    }
+
+    fun retryLiveSync() {
+        refreshWeatherData()
+    }
+
+    // Auth & Accounts State
+    val authRepository = AuthRepository(application)
+    val currentUser: StateFlow<UserAccount> = authRepository.currentUser
+    val auditLogs: StateFlow<List<AdminAuditLog>> = authRepository.auditLogs
+    val farmerRegistry: StateFlow<List<FarmerRegistryItem>> = authRepository.farmerRegistry
+
+    private val initialHasSession = authRepository.hasActiveSession()
+
+    private val _isAuthModalOpen = MutableStateFlow(false)
+    val isAuthModalOpen = _isAuthModalOpen.asStateFlow()
+
+    private val _isAdminDashboardOpen = MutableStateFlow(initialHasSession && authRepository.currentUser.value.role != UserRole.FARMER)
+    val isAdminDashboardOpen = _isAdminDashboardOpen.asStateFlow()
+
+    private val _isLandingScreenOpen = MutableStateFlow(!initialHasSession)
+    val isLandingScreenOpen = _isLandingScreenOpen.asStateFlow()
+
+    private val _isLogoutConfirmationOpen = MutableStateFlow(false)
+    val isLogoutConfirmationOpen = _isLogoutConfirmationOpen.asStateFlow()
+
+    fun promptLogout() {
+        _isLogoutConfirmationOpen.value = true
+    }
+
+    fun dismissLogoutPrompt() {
+        _isLogoutConfirmationOpen.value = false
+    }
+
+    fun confirmLogout() {
+        _isLogoutConfirmationOpen.value = false
+        logout()
+    }
+
+    fun openAuthModal() {
+        _isAuthModalOpen.value = true
+    }
+
+    fun closeAuthModal() {
+        _isAuthModalOpen.value = false
+    }
+
+    fun openAdminDashboard() {
+        _isAdminDashboardOpen.value = true
+    }
+
+    fun closeAdminDashboard() {
+        _isAdminDashboardOpen.value = false
+    }
+
+    fun openLandingScreen() {
+        _isLandingScreenOpen.value = true
+        _isAdminDashboardOpen.value = false
+        _isAuthModalOpen.value = false
+    }
+
+    fun closeLandingScreen() {
+        _isLandingScreenOpen.value = false
+    }
+
+    fun loginFarmer(identifier: String, passcode: String): Result<UserAccount> {
+        val result = authRepository.loginFarmer(identifier, passcode)
+        if (result.isSuccess) {
+            val farmer = result.getOrNull()
+            if (farmer != null && farmer.farmAreaHectares > 0) {
+                _fertilizerFarmArea.value = farmer.farmAreaHectares.toString()
+                _selectedCrop.value = farmer.primaryCrop
+            }
+            _isLandingScreenOpen.value = false
+        }
+        return result
+    }
+
+    fun registerFarmer(
+        fullName: String,
+        phone: String,
+        rsbsa: String,
+        province: String,
+        municipality: String,
+        farmAreaHa: Double,
+        crop: String
+    ): Result<UserAccount> {
+        val result = authRepository.registerFarmer(fullName, phone, rsbsa, province, municipality, farmAreaHa, crop)
+        if (result.isSuccess) {
+            _fertilizerFarmArea.value = farmAreaHa.toString()
+            _selectedCrop.value = crop
+            _isLandingScreenOpen.value = false
+        }
+        return result
+    }
+
+    fun loginAdminPersonnel(identifier: String, passcode: String): Result<UserAccount> {
+        val result = authRepository.loginAuthorizedPersonnel(identifier, passcode)
+        if (result.isSuccess) {
+            _isAdminDashboardOpen.value = true
+            _isLandingScreenOpen.value = false
+        }
+        return result
+    }
+
+    fun logout() {
+        authRepository.logout()
+        _isAdminDashboardOpen.value = false
+        _isAuthModalOpen.value = false
+        _isLandingScreenOpen.value = true
+    }
+
+    fun switchRoleToFarmer() {
+        authRepository.switchRoleToFarmer()
+        _isAdminDashboardOpen.value = false
+    }
+
+    fun setLanguage(language: AppLanguage) {
+        _currentLanguage.value = language
+        prefs.edit().putString("selected_lang", language.name).apply()
+        val current = _weatherData.value
+        _weatherData.value = current.copy(
+            advisory = calculateFertilizerAdvisory(
+                precipitationSumMm = current.precipitationSumMm,
+                maxTempC = current.maxTempC,
+                windSpeedKmh = current.windSpeedKmh,
+                language = language
+            )
+        )
+    }
+
+    // Navigation Tab
+    private val _currentTab = MutableStateFlow(0) // 0: Home, 1: Measurement, 2: Fertilizer, 3: Booklet, 4: History
+    val currentTab = _currentTab.asStateFlow()
+
+    fun selectTab(tabIndex: Int) {
+        _currentTab.value = tabIndex
+    }
+
+    // Selected guide details route
+    private val _selectedGuide = MutableStateFlow<GuideArticle?>(null)
+    val selectedGuide = _selectedGuide.asStateFlow()
+
+    fun openGuide(guide: GuideArticle) {
+        _selectedGuide.value = guide
+        _currentTab.value = 3 // Booklet tab
+    }
+
+    fun closeGuide() {
+        _selectedGuide.value = null
+    }
+
+    // Booklet Search
+    private val _bookletSearchQuery = MutableStateFlow("")
+    val bookletSearchQuery = _bookletSearchQuery.asStateFlow()
+
+    fun setBookletSearchQuery(query: String) {
+        _bookletSearchQuery.value = query
+    }
+
+    val bookletArticles: StateFlow<List<GuideArticle>> = combine(bookletSearchQuery) { (query) ->
+        guideRepository.searchArticles(query)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), guideRepository.getArticles())
+
+    // ----------------------------------------------------
+    // MEASUREMENT STATE & CALCULATIONS
+    // ----------------------------------------------------
+    private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(application)
+    private var locationCallback: LocationCallback? = null
+
+    private val _currentLocation = MutableStateFlow<MapPoint?>(null)
+    val currentLocation = _currentLocation.asStateFlow()
+
+    private val _hasLocationPermission = MutableStateFlow(false)
+    val hasLocationPermission = _hasLocationPermission.asStateFlow()
+
+    private val _selectedCrop = MutableStateFlow("Rice")
+    val selectedCrop = _selectedCrop.asStateFlow()
+
+    private val _isTracking = MutableStateFlow(false)
+    val isTracking = _isTracking.asStateFlow()
+
+    private val _isPaused = MutableStateFlow(false)
+    val isPaused = _isPaused.asStateFlow()
+
+    private val _boundaryPoints = MutableStateFlow<List<MapPoint>>(emptyList())
+    val boundaryPoints = _boundaryPoints.asStateFlow()
+
+    private val _walkingDistanceMeters = MutableStateFlow(0.0)
+    val walkingDistanceMeters = _walkingDistanceMeters.asStateFlow()
+
+    private val _estimatedAreaHectares = MutableStateFlow(0.0)
+    val estimatedAreaHectares = _estimatedAreaHectares.asStateFlow()
+
+    private val _gpsAccuracyText = MutableStateFlow("High (±2m)")
+    val gpsAccuracyText = _gpsAccuracyText.asStateFlow()
+
+    fun onLocationPermissionGranted() {
+        _hasLocationPermission.value = true
+        startLocationUpdates()
+    }
+
+    private fun startLocationUpdates() {
+        val app = getApplication<Application>()
+        val finePerm = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarsePerm = ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+        if (_currentLocation.value == null) {
+            _currentLocation.value = MapPoint(15.4827, 120.9723)
+        }
+
+        if (!finePerm && !coarsePerm) {
+            _hasLocationPermission.value = false
+            return
+        }
+
+        try {
+            fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
+                if (loc != null) {
+                    val p = MapPoint(loc.latitude, loc.longitude)
+                    _currentLocation.value = p
+                    val acc = loc.accuracy.toInt()
+                    _gpsAccuracyText.value = "±${acc}m (${if (acc <= 5) "High" else if (acc <= 15) "Medium" else "Low"})"
+                    if (_selectedWeatherScenario.value == WeatherScenario.LIVE_GPS) {
+                        refreshWeatherData()
+                    }
+                }
+            }.addOnFailureListener {
+                if (_currentLocation.value == null) {
+                    _currentLocation.value = MapPoint(15.4827, 120.9723)
+                }
+            }
+
+            val priority = if (finePerm) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY
+            val locationRequest = LocationRequest.Builder(priority, 2000L)
+                .setMinUpdateIntervalMillis(1000L)
+                .setMinUpdateDistanceMeters(1.0f)
+                .build()
+
+            if (locationCallback == null) {
+                locationCallback = object : LocationCallback() {
+                    override fun onLocationResult(result: LocationResult) {
+                        val loc = result.lastLocation ?: return
+                        val newPoint = MapPoint(loc.latitude, loc.longitude)
+                        _currentLocation.value = newPoint
+                        val accuracyMeters = loc.accuracy.toInt()
+                        _gpsAccuracyText.value = "±${accuracyMeters}m (${if (accuracyMeters <= 5) "High" else if (accuracyMeters <= 15) "Medium" else "Low"})"
+
+                        // If user is in LIVE_GPS weather scenario, refresh weather when location is updated if needed
+                        if (_selectedWeatherScenario.value == WeatherScenario.LIVE_GPS && _weatherData.value.locationName.startsWith("GPS Field Location")) {
+                            refreshWeatherData()
+                        }
+
+                        if (_isTracking.value && !_isPaused.value) {
+                            val currentList = _boundaryPoints.value.toMutableList()
+                            val lastPoint = currentList.lastOrNull()
+
+                            if (lastPoint == null || MapUtils.calculateDistanceMeters(lastPoint, newPoint) >= 1.5) {
+                                currentList.add(newPoint)
+                                _boundaryPoints.value = currentList
+                                recalculateMeasurementMetrics(currentList)
+                            }
+                        }
+                    }
+                }
+            }
+
+            locationCallback?.let { cb ->
+                fusedLocationClient.requestLocationUpdates(
+                    locationRequest,
+                    cb,
+                    Looper.getMainLooper()
+                ).addOnFailureListener {
+                    // Fail gracefully if GPS or Location service is unavailable
+                    if (_currentLocation.value == null) {
+                        _currentLocation.value = MapPoint(15.4827, 120.9723)
+                    }
+                }
+            }
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+            if (_currentLocation.value == null) {
+                _currentLocation.value = MapPoint(15.4827, 120.9723)
+            }
+        } catch (e: Throwable) {
+            e.printStackTrace()
+            if (_currentLocation.value == null) {
+                _currentLocation.value = MapPoint(15.4827, 120.9723)
+            }
+        }
+    }
+
+    fun setCrop(crop: String) {
+        _selectedCrop.value = crop
+        saveAutosaveProgress()
+    }
+
+    fun startTracking() {
+        _isTracking.value = true
+        _isPaused.value = false
+        if (_boundaryPoints.value.isEmpty()) {
+            val startPoint = _currentLocation.value ?: MapPoint(15.4827, 120.9723)
+            _boundaryPoints.value = listOf(startPoint)
+        }
+        if (_hasLocationPermission.value && locationCallback == null) {
+            startLocationUpdates()
+        }
+        saveAutosaveProgress()
+    }
+
+    fun pauseTracking() {
+        _isPaused.value = true
+        saveAutosaveProgress()
+    }
+
+    fun resumeTracking() {
+        _isPaused.value = false
+        saveAutosaveProgress()
+    }
+
+    fun markPoint(lat: Double? = null, lng: Double? = null) {
+        val currentList = _boundaryPoints.value.toMutableList()
+        val currLoc = _currentLocation.value
+
+        val newPoint = if (lat != null && lng != null) {
+            MapPoint(lat, lng)
+        } else if (currentList.isEmpty()) {
+            currLoc ?: MapPoint(15.4827, 120.9723)
+        } else {
+            val last = currentList.last()
+            if (currLoc != null && MapUtils.calculateDistanceMeters(last, currLoc) > 1.0) {
+                currLoc
+            } else {
+                // If device hasn't physically moved across the field, project the next corner ~12 meters out
+                val pointIndex = currentList.size
+                val angleDegrees = (pointIndex * 90.0) % 360.0
+                val distanceMeters = 12.5 + (pointIndex % 3) * 2.0
+                MapUtils.destinationPoint(last, distanceMeters, angleDegrees)
+            }
+        }
+
+        currentList.add(newPoint)
+        _boundaryPoints.value = currentList
+
+        recalculateMeasurementMetrics(currentList)
+        saveAutosaveProgress()
+    }
+
+    fun addManualPointOnMap(lat: Double, lng: Double) {
+        val currentList = _boundaryPoints.value.toMutableList()
+        currentList.add(MapPoint(lat, lng))
+        _boundaryPoints.value = currentList
+        recalculateMeasurementMetrics(currentList)
+        saveAutosaveProgress()
+    }
+
+    private fun recalculateMeasurementMetrics(points: List<MapPoint>) {
+        val dist = MapUtils.calculateTotalDistance(points)
+        _walkingDistanceMeters.value = dist
+        
+        if (points.size >= 3) {
+            val sqMeters = MapUtils.calculatePolygonAreaSquareMeters(points)
+            _estimatedAreaHectares.value = MapUtils.squareMetersToHectares(sqMeters)
+        } else {
+            _estimatedAreaHectares.value = 0.0
+        }
+    }
+
+    fun undoLastPoint() {
+        val currentList = _boundaryPoints.value.toMutableList()
+        if (currentList.isNotEmpty()) {
+            currentList.removeAt(currentList.lastIndex)
+            _boundaryPoints.value = currentList
+            recalculateMeasurementMetrics(currentList)
+            saveAutosaveProgress()
+        }
+    }
+
+    fun clearAllPoints() {
+        _boundaryPoints.value = emptyList()
+        _walkingDistanceMeters.value = 0.0
+        _estimatedAreaHectares.value = 0.0
+        clearAutosaveProgress()
+    }
+
+    fun deletePointAt(index: Int) {
+        val currentList = _boundaryPoints.value.toMutableList()
+        if (index in currentList.indices) {
+            currentList.removeAt(index)
+            _boundaryPoints.value = currentList
+            recalculateMeasurementMetrics(currentList)
+            saveAutosaveProgress()
+        }
+    }
+
+    fun resetMeasurement() {
+        _isTracking.value = false
+        _isPaused.value = false
+        _boundaryPoints.value = emptyList()
+        _walkingDistanceMeters.value = 0.0
+        _estimatedAreaHectares.value = 0.0
+        clearAutosaveProgress()
+    }
+
+    fun saveAutosaveProgress() {
+        try {
+            val points = _boundaryPoints.value
+            if (points.isEmpty()) {
+                clearAutosaveProgress()
+                return
+            }
+            val pointsStr = points.joinToString(";") { "${it.lat},${it.lng}" }
+            prefs.edit()
+                .putString("autosave_boundary_points", pointsStr)
+                .putBoolean("autosave_is_tracking", _isTracking.value)
+                .putBoolean("autosave_is_paused", _isPaused.value)
+                .putString("autosave_selected_crop", _selectedCrop.value)
+                .putFloat("autosave_walking_distance", _walkingDistanceMeters.value.toFloat())
+                .putFloat("autosave_estimated_area", _estimatedAreaHectares.value.toFloat())
+                .putLong("autosave_timestamp", System.currentTimeMillis())
+                .apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun restoreAutosaveProgress() {
+        try {
+            val pointsStr = prefs.getString("autosave_boundary_points", null) ?: return
+            if (pointsStr.isBlank()) return
+
+            val pointList = pointsStr.split(";").mapNotNull { item ->
+                val parts = item.split(",")
+                if (parts.size == 2) {
+                    val lat = parts[0].toDoubleOrNull()
+                    val lng = parts[1].toDoubleOrNull()
+                    if (lat != null && lng != null) MapPoint(lat, lng) else null
+                } else null
+            }
+
+            if (pointList.isNotEmpty()) {
+                _boundaryPoints.value = pointList
+                _isTracking.value = prefs.getBoolean("autosave_is_tracking", false)
+                _isPaused.value = prefs.getBoolean("autosave_is_paused", false)
+                _selectedCrop.value = prefs.getString("autosave_selected_crop", "Rice") ?: "Rice"
+                recalculateMeasurementMetrics(pointList)
+
+                val areaHa = _estimatedAreaHectares.value
+                _restoredSessionNotice.value = "Restored previous progress: ${pointList.size} points marked (${String.format("%.2f", areaHa)} ha)"
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun clearAutosaveProgress() {
+        try {
+            prefs.edit()
+                .remove("autosave_boundary_points")
+                .remove("autosave_is_tracking")
+                .remove("autosave_is_paused")
+                .remove("autosave_selected_crop")
+                .remove("autosave_walking_distance")
+                .remove("autosave_estimated_area")
+                .remove("autosave_timestamp")
+                .apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun saveCompletedFarm(farmName: String = "Rice Farm") {
+        viewModelScope.launch {
+            val points = _boundaryPoints.value
+            val area = if (points.size >= 3) _estimatedAreaHectares.value else (if (_estimatedAreaHectares.value > 0) _estimatedAreaHectares.value else 1.25)
+            val dist = if (_walkingDistanceMeters.value > 0) _walkingDistanceMeters.value else 180.0
+            
+            val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.US)
+            val dateStr = dateFormat.format(Date())
+
+            val jsonPoints = if (points.isNotEmpty()) {
+                points.joinToString(",", "[", "]") {
+                    "{\"lat\":${it.lat},\"lng\":${it.lng}}"
+                }
+            } else {
+                "[{\"lat\":15.4827,\"lng\":120.9723},{\"lat\":15.4835,\"lng\":120.9730},{\"lat\":15.4820,\"lng\":120.9735}]"
+            }
+
+            val newRecord = FarmRecord(
+                name = farmName.ifBlank { "${_selectedCrop.value} Farm" },
+                dateFormatted = dateStr,
+                timestamp = System.currentTimeMillis(),
+                areaHectares = area,
+                perimeterMeters = dist,
+                cropType = _selectedCrop.value,
+                pointsJson = jsonPoints,
+                walkedMeters = dist,
+                gpsAccuracy = "High",
+                boundaryPointsCount = if (points.isNotEmpty()) points.size else 3
+            )
+
+            repository.insertFarm(newRecord)
+            resetMeasurement()
+            _currentTab.value = 4 // Automatically navigate to History tab
+        }
+    }
+
+    // ----------------------------------------------------
+    // FERTILIZER CALCULATOR STATE & NPK TARGETS
+    // ----------------------------------------------------
+    private val _fertilizerFarmArea = MutableStateFlow("1.0")
+    val fertilizerFarmArea = _fertilizerFarmArea.asStateFlow()
+
+    private val _targetN = MutableStateFlow("120")
+    val targetN = _targetN.asStateFlow()
+
+    private val _targetP = MutableStateFlow("40")
+    val targetP = _targetP.asStateFlow()
+
+    private val _targetK = MutableStateFlow("30")
+    val targetK = _targetK.asStateFlow()
+
+    private val _draftRestoredMessage = MutableStateFlow<String?>(null)
+    val draftRestoredMessage = _draftRestoredMessage.asStateFlow()
+
+    fun clearDraftRestoredMessage() {
+        _draftRestoredMessage.value = null
+    }
+
+    private val _availableFertilizers = MutableStateFlow(
+        listOf(
+            FertilizerItem("complete", "Complete (14-14-14)", defaultPrice = 1850.0, bagsPerHectare = 4.0, isSelected = true, customPrice = 1850.0, nPercent = 14.0, pPercent = 14.0, kPercent = 14.0),
+            FertilizerItem("ammophos", "AmmoPhos (16-20-0)", defaultPrice = 1650.0, bagsPerHectare = 3.0, isSelected = true, customPrice = 1650.0, nPercent = 16.0, pPercent = 20.0, kPercent = 0.0),
+            FertilizerItem("urea", "Urea (46-0-0)", defaultPrice = 1450.0, bagsPerHectare = 3.0, isSelected = true, customPrice = 1450.0, nPercent = 46.0, pPercent = 0.0, kPercent = 0.0),
+            FertilizerItem("nk", "N-K Fertilizer (17-0-17)", defaultPrice = 1750.0, bagsPerHectare = 3.0, isSelected = false, customPrice = 1750.0, nPercent = 17.0, pPercent = 0.0, kPercent = 17.0),
+            FertilizerItem("dap", "DAP (18-46-0)", defaultPrice = 2100.0, bagsPerHectare = 2.5, isSelected = false, customPrice = 2100.0, nPercent = 18.0, pPercent = 46.0, kPercent = 0.0),
+            FertilizerItem("mop", "MOP (0-0-60)", defaultPrice = 1950.0, bagsPerHectare = 2.0, isSelected = false, customPrice = 1950.0, nPercent = 0.0, pPercent = 0.0, kPercent = 60.0),
+            FertilizerItem("amsulf", "Ammonium Sulfate (21-0-0)", defaultPrice = 950.0, bagsPerHectare = 2.0, isSelected = false, customPrice = 950.0, nPercent = 21.0, pPercent = 0.0, kPercent = 0.0),
+            FertilizerItem("organic", "Organic Fertilizer (2-1-2)", defaultPrice = 450.0, bagsPerHectare = 10.0, isSelected = false, customPrice = 450.0, nPercent = 2.0, pPercent = 1.0, kPercent = 2.0)
+        )
+    )
+    val availableFertilizers = _availableFertilizers.asStateFlow()
+
+    private val _calculationResult = MutableStateFlow<CalculationResult?>(null)
+    val calculationResult = _calculationResult.asStateFlow()
+
+    fun setFertilizerFarmArea(areaStr: String) {
+        _fertilizerFarmArea.value = areaStr
+        saveDraftState()
+    }
+
+    fun setTargetN(value: String) {
+        _targetN.value = value
+        saveDraftState()
+    }
+
+    fun setTargetP(value: String) {
+        _targetP.value = value
+        saveDraftState()
+    }
+
+    fun setTargetK(value: String) {
+        _targetK.value = value
+        saveDraftState()
+    }
+
+    fun toggleFertilizerSelected(id: String) {
+        val list = _availableFertilizers.value.map { item ->
+            if (item.id == id) item.copy(isSelected = !item.isSelected) else item
+        }
+        _availableFertilizers.value = list
+        saveDraftState()
+    }
+
+    fun toggleFertilizerAvailability(id: String) {
+        val list = _availableFertilizers.value.map { item ->
+            if (item.id == id) item.copy(isAvailable = !item.isAvailable) else item
+        }
+        _availableFertilizers.value = list
+        saveDraftState()
+    }
+
+    fun updateFertilizerPrice(id: String, newPrice: Double) {
+        val list = _availableFertilizers.value.map { item ->
+            if (item.id == id) item.copy(customPrice = newPrice) else item
+        }
+        _availableFertilizers.value = list
+        saveDraftState()
+    }
+
+    fun updateFertilizerNutrients(id: String, n: Double, p: Double, k: Double) {
+        val list = _availableFertilizers.value.map { item ->
+            if (item.id == id) item.copy(nPercent = n, pPercent = p, kPercent = k) else item
+        }
+        _availableFertilizers.value = list
+        saveDraftState()
+    }
+
+    fun runCalculation() {
+        val area = _fertilizerFarmArea.value.toDoubleOrNull() ?: 1.0
+        val nReq = _targetN.value.toDoubleOrNull() ?: 120.0
+        val pReq = _targetP.value.toDoubleOrNull() ?: 40.0
+        val kReq = _targetK.value.toDoubleOrNull() ?: 30.0
+
+        val crop = _selectedCrop.value
+        val selected = _availableFertilizers.value.filter { it.isSelected && it.isAvailable }
+
+        var matrixExplanation = ""
+
+        if (selected.size == 3) {
+            val f1 = selected[0]
+            val f2 = selected[1]
+            val f3 = selected[2]
+
+            val solution = com.example.util.MatrixSolver.solve3x3(
+                f1.nPercent, f1.pPercent, f1.kPercent,
+                f2.nPercent, f2.pPercent, f2.kPercent,
+                f3.nPercent, f3.pPercent, f3.kPercent,
+                nReq, pReq, kReq
+            )
+
+            if (solution.isUniqueSolution) {
+                f1.bagsPerHectare = solution.xKgPerHa / 50.0
+                f2.bagsPerHectare = solution.yKgPerHa / 50.0
+                f3.bagsPerHectare = solution.zKgPerHa / 50.0
+                matrixExplanation = solution.explanation
+            }
+        }
+
+        val breakdowns = selected.map { item ->
+            val totalBags = item.bagsPerHectare * area
+            val roundedBags = kotlin.math.ceil(totalBags * 10) / 10.0
+            val cost = roundedBags * item.customPrice
+            FertilizerBreakdown(item.name, item.customPrice, roundedBags, cost)
+        }
+
+        val totalCost = breakdowns.sumOf { it.totalCost }
+        val (recs, schedule) = generateFertilizerRecommendations(area, crop, selected, breakdowns)
+        _calculationResult.value = CalculationResult(area, breakdowns, totalCost, recs, schedule, matrixExplanation)
+        saveDraftState()
+    }
+
+    fun saveCalculationToHistory() {
+        viewModelScope.launch {
+            val result = _calculationResult.value ?: return@launch
+            val dateFormat = SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.US)
+            val dateStr = dateFormat.format(Date())
+
+            val itemsSummary = result.items
+                .filter { it.bagsNeeded > 0 }
+                .joinToString(", ") { "${it.bagsNeeded} sako ng ${it.name}" }
+
+            val recordName = "${_selectedCrop.value} NPK Calculation (₱${String.format("%,.0f", result.totalCost)})"
+            val jsonPoints = "[{\"lat\":15.4827,\"lng\":120.9723},{\"lat\":15.4835,\"lng\":120.9730},{\"lat\":15.4820,\"lng\":120.9735}]"
+
+            val newRecord = FarmRecord(
+                name = recordName,
+                dateFormatted = dateStr,
+                timestamp = System.currentTimeMillis(),
+                areaHectares = result.farmArea,
+                perimeterMeters = 0.0,
+                cropType = _selectedCrop.value,
+                pointsJson = jsonPoints,
+                walkedMeters = 0.0,
+                gpsAccuracy = if (itemsSummary.isNotBlank()) "Kailangan: $itemsSummary" else "NPK Matrix Solution",
+                boundaryPointsCount = result.items.size
+            )
+
+            repository.insertFarm(newRecord)
+            _calculationResult.value = null
+            _currentTab.value = 4 // Navigate directly to History tab
+        }
+    }
+
+    // Auto Save & Restore Draft Helper Logic
+    private fun saveDraftState() {
+        try {
+            val editor = prefs.edit()
+            editor.putString("draft_crop", _selectedCrop.value)
+            editor.putString("draft_area", _fertilizerFarmArea.value)
+            editor.putString("draft_target_n", _targetN.value)
+            editor.putString("draft_target_p", _targetP.value)
+            editor.putString("draft_target_k", _targetK.value)
+            editor.putString("draft_soil_crop", _soilCrop.value)
+            editor.putString("draft_soil_type", _soilType.value)
+            editor.putString("draft_soil_n", _nitrogenLevel.value)
+            editor.putString("draft_soil_p", _phosphorusLevel.value)
+            editor.putString("draft_soil_k", _potassiumLevel.value)
+
+            // Persist custom fertilizer prices and availability for local suppliers
+            _availableFertilizers.value.forEach { fert ->
+                editor.putFloat("fert_price_${fert.id}", fert.customPrice.toFloat())
+                editor.putBoolean("fert_avail_${fert.id}", fert.isAvailable)
+                editor.putBoolean("fert_select_${fert.id}", fert.isSelected)
+            }
+
+            editor.apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun checkAndRestoreAutoSavedProgress() {
+        try {
+            val savedCrop = prefs.getString("draft_crop", null)
+            val savedArea = prefs.getString("draft_area", null)
+            val savedTargetN = prefs.getString("draft_target_n", null)
+
+            // Restore customized fertilizer prices & availability
+            val restoredList = _availableFertilizers.value.map { fert ->
+                val priceKey = "fert_price_${fert.id}"
+                val availKey = "fert_avail_${fert.id}"
+                val selectKey = "fert_select_${fert.id}"
+
+                var updated = fert
+                if (prefs.contains(priceKey)) {
+                    val p = prefs.getFloat(priceKey, fert.customPrice.toFloat()).toDouble()
+                    updated = updated.copy(customPrice = p)
+                }
+                if (prefs.contains(availKey)) {
+                    val a = prefs.getBoolean(availKey, fert.isAvailable)
+                    updated = updated.copy(isAvailable = a)
+                }
+                if (prefs.contains(selectKey)) {
+                    val s = prefs.getBoolean(selectKey, fert.isSelected)
+                    updated = updated.copy(isSelected = s)
+                }
+                updated
+            }
+            _availableFertilizers.value = restoredList
+
+            if (savedCrop != null || savedArea != null || savedTargetN != null) {
+                if (savedCrop != null) _selectedCrop.value = savedCrop
+                if (savedArea != null) _fertilizerFarmArea.value = savedArea
+                if (savedTargetN != null) _targetN.value = savedTargetN
+                prefs.getString("draft_target_p", null)?.let { _targetP.value = it }
+                prefs.getString("draft_target_k", null)?.let { _targetK.value = it }
+                prefs.getString("draft_soil_crop", null)?.let { _soilCrop.value = it }
+                prefs.getString("draft_soil_type", null)?.let { _soilType.value = it }
+                prefs.getString("draft_soil_n", null)?.let { _nitrogenLevel.value = it }
+                prefs.getString("draft_soil_p", null)?.let { _phosphorusLevel.value = it }
+                prefs.getString("draft_soil_k", null)?.let { _potassiumLevel.value = it }
+
+                _draftRestoredMessage.value = "Auto-Save Restored: Your previous farm progress & settings were safely recovered."
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun generateFertilizerRecommendations(
+        area: Double,
+        crop: String,
+        selected: List<FertilizerItem>,
+        breakdowns: List<FertilizerBreakdown>
+    ): Pair<List<String>, List<String>> {
+        val recs = mutableListOf<String>()
+        val schedule = mutableListOf<String>()
+
+        if (selected.isEmpty()) {
+            recs.add("No available fertilizers selected. Please enable and select at least one fertilizer.")
+            schedule.add("No active application schedule. Check available fertilizer options above.")
+            return Pair(recs, schedule)
+        }
+
+        val totalBagsCount = breakdowns.sumOf { it.bagsNeeded }
+        val missingPrices = selected.count { it.customPrice <= 0 }
+
+        val wData = _weatherData.value
+        val adv = wData.advisory
+        recs.add("🌤️ Regional Weather (${wData.locationName}): Temp ${wData.currentTempC}°C | Rain ${String.format("%.1f", wData.precipitationSumMm)} mm | ${wData.weatherCondition}")
+        recs.add("⚠️ Fertilizer Weather Warning: ${adv.title} - ${adv.summary}")
+
+        if (adv.riskLevel != WeatherRiskLevel.OPTIMAL) {
+            schedule.add("🚨 CRITICAL WEATHER SAFETY: ${adv.actionStep}")
+        } else {
+            schedule.add("✅ WEATHER APPLICATION WINDOW: ${adv.bestApplicationWindow}")
+        }
+
+        recs.add("Land Measurement & Crop: $area hectare(s) for $crop.")
+        recs.add("Calculation Result: Total ${String.format("%.1f", totalBagsCount)} bags required across ${selected.size} selected available fertilizer(s).")
+
+        if (missingPrices > 0) {
+            recs.add("Notice: $missingPrices selected fertilizer(s) currently set at ₱00.0. Enter market price per bag to update field cost estimation.")
+        }
+
+        selected.forEach { item ->
+            val bags = kotlin.math.ceil(item.bagsPerHectare * area * 10) / 10.0
+            val priceNote = if (item.customPrice > 0) "₱${String.format("%,.0f", item.customPrice)}/bag" else "₱00.0 (Price pending input)"
+            val costNote = if (item.customPrice > 0) "₱${String.format("%,.0f", bags * item.customPrice)}" else "₱0.00"
+
+            when (item.id) {
+                "urea" -> {
+                    recs.add("Urea ($bags bags for $area ha $crop @ $priceNote = $costNote): High-nitrogen source for rapid foliage and tiller growth.")
+                    when (crop.lowercase()) {
+                        "corn" -> schedule.add("Corn Topdress (25-30 DAP): Apply $bags bags Urea along rows before side-dressing.")
+                        "vegetables" -> schedule.add("Vegetable Growth Stage: Apply $bags bags Urea in weekly split doses.")
+                        "sugarcane" -> schedule.add("Sugarcane Topdress (45-60 DAP): Broadcast $bags bags Urea along cane rows.")
+                        else -> {
+                            val halfBags = String.format("%.1f", bags / 2.0)
+                            schedule.add("Rice 1st Topdress (21 DAT): Apply $halfBags bags Urea in 2-3cm standing water.")
+                            schedule.add("Rice 2nd Topdress (40 DAT): Apply $halfBags bags Urea at Panicle Initiation.")
+                        }
+                    }
+                }
+                "complete" -> {
+                    recs.add("Complete 14-14-14 ($bags bags for $area ha $crop @ $priceNote = $costNote): Balanced N-P-K for root development and tiller strength.")
+                    schedule.add("Basal Land Prep (0-14 DAT/DAP): Broadcast $bags bags Complete 14-14-14 during final harrowing.")
+                }
+                "dap" -> {
+                    recs.add("DAP 18-46-0 ($bags bags for $area ha $crop @ $priceNote = $costNote): High phosphorus for root expansion and seedling vigor.")
+                    schedule.add("Basal Application: Place $bags bags DAP directly near seedling root zone.")
+                }
+                "mop" -> {
+                    recs.add("MOP / Potash ($bags bags for $area ha $crop @ $priceNote = $costNote): Enhances grain filling, disease resistance, and stalk integrity.")
+                    schedule.add("Grain Filling Stage (40-50 DAT/DAP): Apply $bags bags MOP to improve grain weight.")
+                }
+                "amsulf" -> {
+                    recs.add("Ammonium Sulfate ($bags bags for $area ha $crop @ $priceNote = $costNote): Supplies nitrogen and sulfur for plant greening.")
+                    schedule.add("Mid-Tillering Stage (25-30 DAT/DAP): Apply $bags bags Ammonium Sulfate.")
+                }
+                "organic" -> {
+                    recs.add("Organic Fertilizer ($bags bags for $area ha $crop @ $priceNote = $costNote): Enhances soil organic matter and water holding capacity.")
+                    schedule.add("Pre-Planting (-14 Days): Broadcast $bags bags Organic Fertilizer during initial land preparation.")
+                }
+                else -> {
+                    recs.add("${item.name} ($bags bags for $area ha $crop @ $priceNote = $costNote): Field application recommended.")
+                    schedule.add("Active Stage: Apply $bags bags ${item.name}.")
+                }
+            }
+        }
+
+        return Pair(recs, schedule)
+    }
+
+    fun clearCalculationResult() {
+        _calculationResult.value = null
+    }
+
+    // ----------------------------------------------------
+    // SOIL ANALYSIS & GEMINI AI STATE
+    // ----------------------------------------------------
+    private val geminiSoilRepository = com.example.data.repository.GeminiSoilRepository()
+
+    private val _isGeminiAnalyzing = MutableStateFlow(false)
+    val isGeminiAnalyzing = _isGeminiAnalyzing.asStateFlow()
+
+    private val _geminiAnalysisError = MutableStateFlow<String?>(null)
+    val geminiAnalysisError = _geminiAnalysisError.asStateFlow()
+
+    private val _soilCrop = MutableStateFlow("Rice")
+    val soilCrop = _soilCrop.asStateFlow()
+
+    private val _soilType = MutableStateFlow("Clay Loam")
+    val soilType = _soilType.asStateFlow()
+
+    private val _nitrogenLevel = MutableStateFlow("Low")
+    val nitrogenLevel = _nitrogenLevel.asStateFlow()
+
+    private val _phosphorusLevel = MutableStateFlow("Medium")
+    val phosphorusLevel = _phosphorusLevel.asStateFlow()
+
+    private val _potassiumLevel = MutableStateFlow("Medium")
+    val potassiumLevel = _potassiumLevel.asStateFlow()
+
+    private val _organicMatter = MutableStateFlow("2-4%")
+    val organicMatter = _organicMatter.asStateFlow()
+
+    private val _soilRecommendation = MutableStateFlow<SoilRecommendation?>(null)
+    val soilRecommendation = _soilRecommendation.asStateFlow()
+
+    private val _savedSoilReports = MutableStateFlow<List<SoilReport>>(emptyList())
+    val savedSoilReports = _savedSoilReports.asStateFlow()
+
+    private val _activeSoilReport = MutableStateFlow<SoilReport?>(null)
+    val activeSoilReport = _activeSoilReport.asStateFlow()
+
+    fun dismissGeminiError() {
+        _geminiAnalysisError.value = null
+    }
+
+    fun analyzeSoilWithGemini(
+        bitmap: android.graphics.Bitmap,
+        crop: String,
+        onComplete: (Boolean) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isGeminiAnalyzing.value = true
+            _geminiAnalysisError.value = null
+
+            val result = geminiSoilRepository.analyzeSoilImage(bitmap, crop)
+
+            result.onSuccess { res ->
+                _soilCrop.value = crop
+                _soilType.value = res.soilType
+                _nitrogenLevel.value = res.nitrogenLevel
+                _phosphorusLevel.value = res.phosphorusLevel
+                _potassiumLevel.value = res.potassiumLevel
+
+                val omStr = if (res.organicMatterPct > 4.0) ">4%" else if (res.organicMatterPct >= 2.0) "2-4%" else "<2%"
+                _organicMatter.value = omStr
+
+                val recObj = SoilRecommendation(
+                    summary = "Gemini 3.5 Flash AI Assessment for $crop: ${res.summary}",
+                    recommendations = res.recommendations,
+                    applicationSchedule = res.applicationSchedule
+                )
+                _soilRecommendation.value = recObj
+
+                val report = SoilReport(
+                    crop = crop,
+                    soilType = res.soilType,
+                    healthScore = res.healthScore,
+                    healthStatus = res.healthStatus,
+                    nitrogenLevel = res.nitrogenLevel,
+                    nitrogenPpm = res.nitrogenPpm,
+                    phosphorusLevel = res.phosphorusLevel,
+                    phosphorusPpm = res.phosphorusPpm,
+                    potassiumLevel = res.potassiumLevel,
+                    potassiumPpm = res.potassiumPpm,
+                    phValue = res.phValue,
+                    organicMatterPct = res.organicMatterPct,
+                    moisturePct = res.moisturePct,
+                    summary = "Gemini AI Observations: ${res.visualObservations}\n\n${res.summary}",
+                    recommendations = res.recommendations,
+                    applicationSchedule = res.applicationSchedule
+                )
+
+                _activeSoilReport.value = report
+                _isGeminiAnalyzing.value = false
+                onComplete(true)
+            }.onFailure { err ->
+                _isGeminiAnalyzing.value = false
+                val errorMsg = err.message ?: "Gemini analysis failed"
+                _geminiAnalysisError.value = errorMsg
+
+                val isInvalidImage = errorMsg.contains("INVALID IMAGE DETECTED", ignoreCase = true)
+                if (isInvalidImage) {
+                    // Clear active report and do NOT generate fallback recommendations when image is invalid
+                    _activeSoilReport.value = null
+                    _soilRecommendation.value = null
+                } else {
+                    // Fallback to local heuristic assessment for network/key errors so user is not blocked
+                    generateSoilRecommendationWithCustomValues(
+                        crop = crop,
+                        type = _soilType.value,
+                        n = _nitrogenLevel.value,
+                        p = _phosphorusLevel.value,
+                        k = _potassiumLevel.value,
+                        om = _organicMatter.value,
+                        ph = 6.2,
+                        moisture = 48.0
+                    )
+                }
+                onComplete(false)
+            }
+        }
+    }
+
+    fun setSoilCrop(crop: String) { _soilCrop.value = crop }
+    fun setSoilType(type: String) { _soilType.value = type }
+    fun setNitrogenLevel(level: String) { _nitrogenLevel.value = level }
+    fun setPhosphorusLevel(level: String) { _phosphorusLevel.value = level }
+    fun setPotassiumLevel(level: String) { _potassiumLevel.value = level }
+    fun setOrganicMatter(om: String) { _organicMatter.value = om }
+
+    fun generateSoilRecommendation() {
+        generateSoilRecommendationWithCustomValues(
+            crop = _soilCrop.value,
+            type = _soilType.value,
+            n = _nitrogenLevel.value,
+            p = _phosphorusLevel.value,
+            k = _potassiumLevel.value,
+            om = _organicMatter.value,
+            ph = 6.2,
+            moisture = 48.0
+        )
+    }
+
+    fun generateSoilRecommendationWithCustomValues(
+        crop: String,
+        type: String,
+        n: String,
+        p: String,
+        k: String,
+        om: String,
+        ph: Double,
+        moisture: Double
+    ) {
+        _soilCrop.value = crop
+        _soilType.value = type
+        _nitrogenLevel.value = n
+        _phosphorusLevel.value = p
+        _potassiumLevel.value = k
+        _organicMatter.value = om
+
+        val recs = mutableListOf<String>()
+        val schedule = mutableListOf<String>()
+
+        val wData = _weatherData.value
+        val adv = wData.advisory
+        if (adv.riskLevel != WeatherRiskLevel.OPTIMAL) {
+            recs.add("🌤️ Weather Precaution (${wData.locationName}): ${adv.title} — ${adv.actionStep}")
+        }
+
+        // Calculate Soil Health Score (0-100)
+        var nScore = if (n == "Medium") 30 else if (n == "High") 25 else 15
+        var pScore = if (p == "Medium" || p == "High") 25 else 12
+        var kScore = if (k == "Medium" || k == "High") 25 else 12
+        var phScore = if (ph in 6.0..7.2) 20 else if (ph in 5.5..7.8) 14 else 8
+
+        val totalScore = (nScore + pScore + kScore + phScore).coerceIn(25, 98)
+
+        val healthStatus = when {
+            totalScore >= 80 -> "OPTIMAL SOIL QUALITY"
+            totalScore >= 65 -> "MODERATE NUTRIENT BALANCE"
+            else -> "NUTRIENT DEFICIENCY DETECTED"
+        }
+
+        // Numerical PPM estimates based on levels
+        val nPpm = if (n == "High") 42 else if (n == "Medium") 28 else 14
+        val pPpm = if (p == "High") 35 else if (p == "Medium") 22 else 10
+        val kPpm = if (k == "High") 180 else if (k == "Medium") 125 else 75
+        val omPct = if (om == ">4%") 4.5 else if (om == "2-4%") 3.2 else 1.5
+
+        if (n == "Low") {
+            recs.add("High Nitrogen deficiency detected. Boost basal application with Urea or Complete fertilizer.")
+            schedule.add("Basal (0-14 DAT): 2 bags Complete (14-14-14) / ha")
+            schedule.add("Active Tillering (21-28 DAT): 2 bags Urea (46-0-0) / ha")
+            schedule.add("Panicle Initiation (40-45 DAT): 1.5 bags Urea + 1 bag MOP / ha")
+        } else if (n == "Medium") {
+            recs.add("Moderate Nitrogen level. Standard 3-split fertilizer schedule recommended.")
+            schedule.add("Basal (0-14 DAT): 1.5 bags Complete / ha")
+            schedule.add("Active Tillering (21-28 DAT): 1 bag Urea / ha")
+            schedule.add("Panicle Initiation (40-45 DAT): 1 bag Urea / ha")
+        } else {
+            recs.add("Sufficient Nitrogen present. Reduce Urea applications to avoid crop lodging and pest buildup.")
+            schedule.add("Basal (0-14 DAT): 1 bag Complete / ha")
+            schedule.add("Panicle Initiation: 0.5 bag Urea / ha")
+        }
+
+        if (p == "Low") {
+            recs.add("Phosphorus is low. Incorporate DAP (18-46-0) during final land preparation to support root branching.")
+        }
+        if (k == "Low") {
+            recs.add("Potassium is deficient. Apply MOP (0-0-60) at booting stage for disease resistance and filled grains.")
+        }
+
+        if (type == "Sandy") {
+            recs.add("Sandy soil loses nutrients quickly through leaching. Split fertilizer into 4 smaller top-dressings.")
+        } else if (type == "Clay") {
+            recs.add("Clay soil holds water well. Maintain shallow 2-3 cm water layer to maximize nutrient uptake.")
+        }
+
+        if (om == "<2%") {
+            recs.add("Low Organic Matter. Incorporate 10-20 bags organic compost or paddy straw post-harvest.")
+        }
+
+        if (ph < 5.8) {
+            recs.add("Acidic soil detected (pH $ph). Apply 250-500 kg agricultural lime per hectare before planting.")
+        } else if (ph > 7.5) {
+            recs.add("Slightly alkaline soil (pH $ph). Use Ammonium Sulfate as nitrogen source to balance pH.")
+        }
+
+        val recObj = SoilRecommendation(
+            summary = "Targeted nutrient recommendations for $crop in $type soil (Health Index: $totalScore/100).",
+            recommendations = recs,
+            applicationSchedule = schedule
+        )
+        _soilRecommendation.value = recObj
+
+        val report = SoilReport(
+            crop = crop,
+            soilType = type,
+            healthScore = totalScore,
+            healthStatus = healthStatus,
+            nitrogenLevel = n,
+            nitrogenPpm = nPpm,
+            phosphorusLevel = p,
+            phosphorusPpm = pPpm,
+            potassiumLevel = k,
+            potassiumPpm = kPpm,
+            phValue = ph,
+            organicMatterPct = omPct,
+            moisturePct = moisture,
+            summary = recObj.summary,
+            recommendations = recs,
+            applicationSchedule = schedule
+        )
+
+        _activeSoilReport.value = report
+    }
+
+    fun saveActiveSoilReport() {
+        val current = _activeSoilReport.value ?: return
+        val list = _savedSoilReports.value.toMutableList()
+        list.add(0, current)
+        _savedSoilReports.value = list
+    }
+
+    fun deleteSoilReport(report: SoilReport) {
+        val list = _savedSoilReports.value.toMutableList()
+        list.removeAll { it.id == report.id }
+        _savedSoilReports.value = list
+    }
+
+    fun selectSavedSoilReport(report: SoilReport) {
+        _activeSoilReport.value = report
+        _soilCrop.value = report.crop
+        _soilType.value = report.soilType
+        _nitrogenLevel.value = report.nitrogenLevel
+        _phosphorusLevel.value = report.phosphorusLevel
+        _potassiumLevel.value = report.potassiumLevel
+        _soilRecommendation.value = SoilRecommendation(
+            summary = report.summary,
+            recommendations = report.recommendations,
+            applicationSchedule = report.applicationSchedule
+        )
+    }
+
+    fun clearSoilRecommendation() {
+        _soilRecommendation.value = null
+    }
+
+    // ----------------------------------------------------
+    // ACCOUNT & PREFERENCES MANAGEMENT
+    // ----------------------------------------------------
+    private val _showDeleteAccountModal = MutableStateFlow(false)
+    val showDeleteAccountModal = _showDeleteAccountModal.asStateFlow()
+
+    private val _accountDeletedMessage = MutableStateFlow<String?>(null)
+    val accountDeletedMessage = _accountDeletedMessage.asStateFlow()
+
+    fun openDeleteAccountModal() {
+        _showDeleteAccountModal.value = true
+    }
+
+    fun closeDeleteAccountModal() {
+        _showDeleteAccountModal.value = false
+    }
+
+    fun dismissAccountDeletedMessage() {
+        _accountDeletedMessage.value = null
+    }
+
+    fun deleteUserAccount() {
+        viewModelScope.launch {
+            repository.deleteAllFarms()
+            resetMeasurement()
+            clearCalculationResult()
+            clearSoilRecommendation()
+            _historySearchQuery.value = ""
+            _bookletSearchQuery.value = ""
+            _selectedGuide.value = null
+            _currentTab.value = 0 // Navigate back to home
+            _showDeleteAccountModal.value = false
+
+            val msg = when (_currentLanguage.value) {
+                AppLanguage.ENGLISH -> "Account and all farm records have been successfully deleted."
+                AppLanguage.TAGALOG -> "Matagumpay na nabura ang iyong account at lahat ng data ng bukid."
+                AppLanguage.TAGLISH -> "Account and farm data deleted successfully."
+                AppLanguage.ILOCANO -> "Nainaganan ken nabura ammin a rekord ti talon."
+                AppLanguage.CEBUANO -> "Nagmalampuson ang pag-delete sa account ug tanang rekord sa yuta."
+            }
+            _accountDeletedMessage.value = msg
+        }
+    }
+
+    // ----------------------------------------------------
+    // WEATHER INTEGRATION & FERTILIZER SAFETY ALERTS
+    // ----------------------------------------------------
+    private val weatherRepository = WeatherRepository()
+    val agriculturalRegions = weatherRepository.defaultRegions
+
+    private val _selectedRegion = MutableStateFlow(weatherRepository.defaultRegions[0])
+    val selectedRegion = _selectedRegion.asStateFlow()
+
+    private val _selectedWeatherScenario = MutableStateFlow(WeatherScenario.LIVE_GPS)
+    val selectedWeatherScenario = _selectedWeatherScenario.asStateFlow()
+
+    private val _weatherData = MutableStateFlow(FarmWeatherData())
+    val weatherData: StateFlow<FarmWeatherData> = _weatherData.asStateFlow()
+
+    // Tracks if current content is from local storage / cache
+    val isAccessingCachedContent: StateFlow<Boolean> = combine(isOfflineMode, _weatherData) { offline, weather ->
+        offline || weather.isCachedData
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    init {
+        checkAndRestoreAutoSavedProgress()
+        refreshWeatherData()
+    }
+
+    fun selectWeatherRegion(region: AgriculturalRegion) {
+        _selectedRegion.value = region
+        refreshWeatherData()
+    }
+
+    fun setWeatherScenario(scenario: WeatherScenario) {
+        _selectedWeatherScenario.value = scenario
+        refreshWeatherData()
+    }
+
+    fun refreshWeatherData() {
+        viewModelScope.launch {
+            val currLoc = currentLocation.value
+            val reg = _selectedRegion.value
+            val scenario = _selectedWeatherScenario.value
+
+            val isGpsMode = scenario == WeatherScenario.LIVE_GPS
+            val lat = if (isGpsMode && currLoc != null) currLoc.lat else reg.lat
+            val lng = if (isGpsMode && currLoc != null) currLoc.lng else reg.lng
+            val locName = if (isGpsMode && currLoc != null) "GPS Field Location (${reg.province})" else reg.name
+
+            val data = if (_isForcedOffline.value) {
+                FarmWeatherData(
+                    locationName = reg.name,
+                    lat = reg.lat,
+                    lng = reg.lng,
+                    currentTempC = reg.defaultTempC,
+                    maxTempC = reg.defaultTempC + 2.0,
+                    minTempC = reg.defaultTempC - 5.0,
+                    precipitationSumMm = reg.defaultRainMm,
+                    windSpeedKmh = reg.defaultWindKmh,
+                    weatherCondition = reg.condition,
+                    isLiveApi = false,
+                    isCachedData = true,
+                    lastSyncTime = "Offline Local Cache",
+                    dailyForecast = listOf(
+                        DailyForecastDay("Today", reg.defaultTempC + 2.0, reg.defaultTempC - 5.0, reg.defaultRainMm, 20, 2, reg.condition),
+                        DailyForecastDay("Tomorrow", reg.defaultTempC + 1.5, reg.defaultTempC - 4.5, reg.defaultRainMm * 0.8, 15, 2, "Partly Cloudy ⛅"),
+                        DailyForecastDay("Day 3", reg.defaultTempC + 2.0, reg.defaultTempC - 5.0, 1.0, 10, 1, "Mainly Clear 🌤️")
+                    )
+                )
+            } else {
+                weatherRepository.fetchWeatherForLocation(
+                    lat = lat,
+                    lng = lng,
+                    locationName = locName,
+                    scenario = scenario
+                )
+            }
+            val lang = _currentLanguage.value
+            _weatherData.value = data.copy(
+                advisory = calculateFertilizerAdvisory(
+                    precipitationSumMm = data.precipitationSumMm,
+                    maxTempC = data.maxTempC,
+                    windSpeedKmh = data.windSpeedKmh,
+                    language = lang
+                )
+            )
+        }
+    }
+
+    // ----------------------------------------------------
+    // HISTORY ACTIONS
+    // ----------------------------------------------------
+    fun setHistorySearchQuery(query: String) {
+        _historySearchQuery.value = query
+    }
+
+    fun deleteFarmRecord(farm: FarmRecord) {
+        viewModelScope.launch {
+            repository.deleteFarm(farm)
+        }
+    }
+
+    fun deleteAllFarms() {
+        viewModelScope.launch {
+            repository.deleteAllFarms()
+        }
+    }
+
+    init {
+        if (initialHasSession) {
+            val user = authRepository.currentUser.value
+            if (user.farmAreaHectares > 0) {
+                _fertilizerFarmArea.value = user.farmAreaHectares.toString()
+            }
+            if (user.primaryCrop.isNotBlank()) {
+                _selectedCrop.value = user.primaryCrop
+            }
+        }
+        restoreAutosaveProgress()
+        val app = getApplication<Application>()
+        if (ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            _hasLocationPermission.value = true
+            startLocationUpdates()
+        }
+    }
+}
+
+data class CalculationResult(
+    val farmArea: Double,
+    val items: List<FertilizerBreakdown>,
+    val totalCost: Double,
+    val recommendations: List<String> = emptyList(),
+    val applicationSchedule: List<String> = emptyList(),
+    val cramerMatrixExplanation: String = ""
+)
+
+data class FertilizerBreakdown(
+    val name: String,
+    val pricePerBag: Double,
+    val bagsNeeded: Double,
+    val totalCost: Double
+)
+
+data class SoilRecommendation(
+    val summary: String,
+    val recommendations: List<String>,
+    val applicationSchedule: List<String>
+)
+
+data class SoilReport(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val dateFormatted: String = java.text.SimpleDateFormat("MMM dd, yyyy - hh:mm a", java.util.Locale.getDefault()).format(java.util.Date()),
+    val crop: String,
+    val soilType: String,
+    val healthScore: Int,
+    val healthStatus: String,
+    val nitrogenLevel: String,
+    val nitrogenPpm: Int,
+    val phosphorusLevel: String,
+    val phosphorusPpm: Int,
+    val potassiumLevel: String,
+    val potassiumPpm: Int,
+    val phValue: Double,
+    val organicMatterPct: Double,
+    val moisturePct: Double,
+    val summary: String,
+    val recommendations: List<String>,
+    val applicationSchedule: List<String>
+)
+
