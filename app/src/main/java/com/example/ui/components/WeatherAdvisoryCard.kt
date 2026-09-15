@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -652,6 +653,7 @@ fun WeatherAdvisoryCard(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color.White.copy(alpha = 0.95f))
+                        .defaultMinSize(minHeight = 44.dp)
                         .clickable {
                             NotificationHelper.sendWeatherWarningNotification(
                                 context = context,
@@ -682,7 +684,8 @@ fun WeatherAdvisoryCard(
                         text = notifyBtnText,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E5BB0)
+                        color = Color(0xFF1E5BB0),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
 
@@ -762,6 +765,7 @@ private fun ScenarioChip(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(if (isSelected) Color(0xFF1E5BB0) else Color(0xFFECEFF1))
+            .defaultMinSize(minHeight = 36.dp)
             .clickable { onClick() }
             .padding(vertical = 6.dp, horizontal = 4.dp),
         contentAlignment = Alignment.Center
@@ -770,7 +774,8 @@ private fun ScenarioChip(
             text = label,
             fontSize = 10.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) Color.White else Color.Black
+            color = if (isSelected) Color.White else Color.Black,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
 }

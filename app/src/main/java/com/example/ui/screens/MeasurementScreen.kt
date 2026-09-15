@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -467,7 +468,10 @@ fun MeasurementMethodDialog(
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = FarmGreenHeader),
                 shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.testTag("dialog_btn_apply_method")
+                modifier = Modifier
+                    .defaultMinSize(minHeight = 42.dp)
+                    .testTag("dialog_btn_apply_method"),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = when (currentLanguage) {
@@ -477,21 +481,28 @@ fun MeasurementMethodDialog(
                         else -> "Apply Selection"
                     },
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    fontSize = 13.5.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
         },
         dismissButton = {
             TextButton(
-                onClick = onDismiss
+                onClick = onDismiss,
+                modifier = Modifier.defaultMinSize(minHeight = 42.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = when (currentLanguage) {
                         AppLanguage.TAGALOG -> "Kanselahin"
+                        AppLanguage.ILOCANO -> "Kanselaen"
+                        AppLanguage.CEBUANO -> "Kanselahon"
                         else -> "Cancel"
                     },
                     color = FarmTextSecondary,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.5.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }
         },
@@ -1704,34 +1715,38 @@ fun MeasurementScreen(
         // Buttons Row: Start | Pause | Finish
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Start / Dynamic Tracking Button
             Button(
                 onClick = onStartTracking,
                 modifier = Modifier
                     .weight(1.3f)
-                    .height(54.dp)
+                    .defaultMinSize(minHeight = 54.dp)
                     .testTag("btn_start_measurement"),
                 shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isTracking && !isPaused) Color(0xFF1B5E20) else FarmGreenPrimary,
                     contentColor = Color.White
                 )
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Icon(
                         imageVector = if (isTracking && !isPaused) Icons.Default.DirectionsWalk else Icons.Default.PlayArrow,
                         contentDescription = "Start",
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = if (isTracking && !isPaused) "Recording..."
                         else if (isPaused) "Resume Walk"
                         else "Start Walk",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
+                        fontSize = 14.sp
                     )
                 }
             }
@@ -1742,18 +1757,22 @@ fun MeasurementScreen(
                 enabled = isTracking,
                 modifier = Modifier
                     .weight(1f)
-                    .height(54.dp)
+                    .defaultMinSize(minHeight = 54.dp)
                     .testTag("btn_pause_measurement"),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Icon(
                         imageVector = Icons.Default.Pause,
                         contentDescription = "Pause",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Pause", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isTracking) FarmTextDark else Color.Gray)
+                    Text("Pause", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (isTracking) FarmTextDark else Color.Gray)
                 }
             }
 
@@ -1765,19 +1784,23 @@ fun MeasurementScreen(
                 enabled = true,
                 modifier = Modifier
                     .weight(1f)
-                    .height(54.dp)
+                    .defaultMinSize(minHeight = 54.dp)
                     .testTag("btn_finish_measurement"),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Finish",
                         tint = FarmGreenPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Finish", fontSize = 14.sp, color = FarmGreenPrimary, fontWeight = FontWeight.Bold)
+                    Text("Finish", fontSize = 13.sp, color = FarmGreenPrimary, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1802,23 +1825,27 @@ fun MeasurementScreen(
         // Row 1: Mark Point | Undo | Delete Buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // Mark Point Button
             Button(
                 onClick = onMarkPoint,
                 modifier = Modifier
                     .weight(1.3f)
-                    .height(50.dp)
+                    .defaultMinSize(minHeight = 50.dp)
                     .testTag("btn_mark_point"),
                 shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = FarmGreenHeader)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
                         contentDescription = "Mark Point",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -1830,7 +1857,7 @@ fun MeasurementScreen(
                             AppLanguage.CEBUANO -> "Markahi"
                         },
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 13.sp
                     )
                 }
             }
@@ -1841,16 +1868,20 @@ fun MeasurementScreen(
                 enabled = boundaryPoints.isNotEmpty(),
                 modifier = Modifier
                     .weight(1f)
-                    .height(50.dp)
+                    .defaultMinSize(minHeight = 50.dp)
                     .testTag("btn_undo_point"),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Undo,
                         contentDescription = "Undo",
                         tint = if (boundaryPoints.isNotEmpty()) Color(0xFF1976D2) else Color.Gray,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -1862,7 +1893,7 @@ fun MeasurementScreen(
                             AppLanguage.CEBUANO -> "I-undo"
                         },
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         color = if (boundaryPoints.isNotEmpty()) Color(0xFF1976D2) else Color.Gray
                     )
                 }
@@ -1874,19 +1905,23 @@ fun MeasurementScreen(
                 enabled = boundaryPoints.isNotEmpty(),
                 modifier = Modifier
                     .weight(1f)
-                    .height(50.dp)
+                    .defaultMinSize(minHeight = 50.dp)
                     .testTag("btn_delete_points"),
                 shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = Color(0xFFD32F2F)
                 )
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,
                         contentDescription = "Delete",
                         tint = if (boundaryPoints.isNotEmpty()) Color(0xFFD32F2F) else Color.Gray,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -1898,7 +1933,7 @@ fun MeasurementScreen(
                             AppLanguage.CEBUANO -> "I-delete"
                         },
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         color = if (boundaryPoints.isNotEmpty()) Color(0xFFD32F2F) else Color.Gray
                     )
                 }
@@ -2751,11 +2786,11 @@ fun ArFieldMeasurementTapeOverlay(
                                 onClick = { showFinishMeasurementDialog = true },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(38.dp)
+                                    .defaultMinSize(minHeight = 38.dp)
                                     .testTag("btn_ar_finish_measurement"),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
                                 shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 4.dp)
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
@@ -2770,11 +2805,11 @@ fun ArFieldMeasurementTapeOverlay(
                                 onClick = onUndoPoint,
                                 modifier = Modifier
                                     .weight(0.9f)
-                                    .height(38.dp)
+                                    .defaultMinSize(minHeight = 38.dp)
                                     .testTag("btn_ar_undo_point"),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
                                 shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 4.dp)
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(imageVector = Icons.AutoMirrored.Filled.Undo, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
@@ -2787,11 +2822,11 @@ fun ArFieldMeasurementTapeOverlay(
                                 onClick = { showDeletePointDialog = true },
                                 modifier = Modifier
                                     .weight(0.9f)
-                                    .height(38.dp)
+                                    .defaultMinSize(minHeight = 38.dp)
                                     .testTag("btn_ar_delete_point"),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00838F)),
                                 shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 4.dp)
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(imageVector = Icons.Default.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
@@ -2804,11 +2839,11 @@ fun ArFieldMeasurementTapeOverlay(
                                 onClick = onClearPoints,
                                 modifier = Modifier
                                     .weight(0.9f)
-                                    .height(38.dp)
+                                    .defaultMinSize(minHeight = 38.dp)
                                     .testTag("btn_ar_clear_points"),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
                                 shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 4.dp)
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
@@ -2840,10 +2875,11 @@ fun ArFieldMeasurementTapeOverlay(
                                 },
                                 modifier = Modifier
                                     .weight(1.4f)
-                                    .height(40.dp)
+                                    .defaultMinSize(minHeight = 40.dp)
                                     .testTag("btn_ar_add_point"),
                                 colors = ButtonDefaults.buttonColors(containerColor = FarmGreenHeader),
-                                shape = RoundedCornerShape(10.dp)
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(imageVector = Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
@@ -2861,10 +2897,11 @@ fun ArFieldMeasurementTapeOverlay(
                                     onClick = { showFinishMeasurementDialog = true },
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(40.dp)
+                                        .defaultMinSize(minHeight = 40.dp)
                                         .testTag("btn_ar_finish_measurement"),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32)),
-                                    shape = RoundedCornerShape(10.dp)
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
@@ -2885,11 +2922,11 @@ fun ArFieldMeasurementTapeOverlay(
                                     onClick = onUndoPoint,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(34.dp)
+                                        .defaultMinSize(minHeight = 34.dp)
                                         .testTag("btn_ar_undo_point"),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
                                     shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 2.dp)
+                                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(imageVector = Icons.AutoMirrored.Filled.Undo, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
@@ -2902,11 +2939,11 @@ fun ArFieldMeasurementTapeOverlay(
                                     onClick = { showDeletePointDialog = true },
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(34.dp)
+                                        .defaultMinSize(minHeight = 34.dp)
                                         .testTag("btn_ar_delete_point"),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00838F)),
                                     shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 2.dp)
+                                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(imageVector = Icons.Default.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
@@ -2919,11 +2956,11 @@ fun ArFieldMeasurementTapeOverlay(
                                     onClick = onClearPoints,
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(34.dp)
+                                        .defaultMinSize(minHeight = 34.dp)
                                         .testTag("btn_ar_clear_points"),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC62828)),
                                     shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 2.dp)
+                                    contentPadding = PaddingValues(horizontal = 2.dp, vertical = 4.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = null, tint = Color.White, modifier = Modifier.size(13.dp))
@@ -3322,21 +3359,26 @@ fun ArFieldMeasurementTapeOverlay(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = FarmGreenHeader),
                         shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.testTag("btn_confirm_save_ar_measurement")
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = 40.dp)
+                            .testTag("btn_confirm_save_ar_measurement"),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Save, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Save Measurement", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text("Save Measurement", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
                         }
                     }
                 },
                 dismissButton = {
                     OutlinedButton(
                         onClick = { showFinishMeasurementDialog = false },
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.defaultMinSize(minHeight = 40.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text("Edit Points", fontSize = 12.sp, color = FarmTextDark)
+                        Text("Edit Points", fontSize = 12.5.sp, color = FarmTextDark)
                     }
                 },
                 containerColor = Color.White,

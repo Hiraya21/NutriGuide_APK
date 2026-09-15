@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -207,6 +209,7 @@ fun TopNavBar(
                         if (isHighContrastMode) Color(0xFFFFD54F) // Vibrant Amber/Yellow badge when active in sunlight
                         else Color.White.copy(alpha = 0.18f)
                     )
+                    .defaultMinSize(minHeight = 36.dp)
                     .clickable { onToggleHighContrastMode() }
                     .padding(horizontal = 8.dp, vertical = 6.dp)
                     .testTag("toggle_high_contrast_mode")
@@ -237,6 +240,7 @@ fun TopNavBar(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color.White)
+                        .defaultMinSize(minHeight = 36.dp)
                         .clickable { expanded = true }
                         .padding(horizontal = 7.dp, vertical = 6.dp)
                         .testTag("top_bar_language_switcher")
@@ -272,6 +276,8 @@ fun TopNavBar(
                     AppLanguage.values().forEach { lang ->
                         val isSelected = currentLanguage == lang
                         DropdownMenuItem(
+                            modifier = Modifier.defaultMinSize(minHeight = 44.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                             text = {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -317,6 +323,7 @@ fun TopNavBar(
                             if (currentUser?.isAdmin == true) Color(0xFF1565C0)
                             else Color.White.copy(alpha = 0.22f)
                         )
+                        .defaultMinSize(minHeight = 36.dp)
                         .clickable { accountMenuExpanded = true }
                         .padding(horizontal = 7.dp, vertical = 6.dp)
                         .testTag("top_bar_account_button")
@@ -351,6 +358,8 @@ fun TopNavBar(
                 ) {
                     // Header item showing user identity
                     DropdownMenuItem(
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                         text = {
                             Column {
                                 Text(
@@ -376,6 +385,8 @@ fun TopNavBar(
 
                     if (currentUser?.isAdmin == true) {
                         DropdownMenuItem(
+                            modifier = Modifier.defaultMinSize(minHeight = 44.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
@@ -402,6 +413,8 @@ fun TopNavBar(
                     }
 
                     DropdownMenuItem(
+                        modifier = Modifier.defaultMinSize(minHeight = 44.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -158,59 +159,74 @@ fun DeleteAccountModal(
             }
         },
         confirmButton = {
-            Button(
-                onClick = {
-                    onConfirmDelete()
-                    onDismiss()
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = FarmRed,
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(12.dp),
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .testTag("button_confirm_delete_account")
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val confirmText = when (currentLanguage) {
-                    AppLanguage.ENGLISH -> "Yes, Delete Account"
-                    AppLanguage.TAGALOG -> "Oo, Burahin ang Account"
-                    AppLanguage.TAGLISH -> "Yes, Delete Account"
-                    AppLanguage.ILOCANO -> "Wen, Buraen ti Account"
-                    AppLanguage.CEBUANO -> "Oo, I-delete ang Account"
+                Button(
+                    onClick = {
+                        onConfirmDelete()
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = FarmRed,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .testTag("button_confirm_delete_account"),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    val confirmText = when (currentLanguage) {
+                        AppLanguage.ENGLISH -> "Yes, Delete Account"
+                        AppLanguage.TAGALOG -> "Oo, Burahin ang Account"
+                        AppLanguage.TAGLISH -> "Yes, Delete Account"
+                        AppLanguage.ILOCANO -> "Wen, Buraen ti Account"
+                        AppLanguage.CEBUANO -> "Oo, I-delete ang Account"
+                    }
+                    Text(
+                        text = confirmText,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
                 }
-                Text(
-                    text = confirmText,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, FarmBorder),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 46.dp)
+                        .testTag("button_cancel_delete_account"),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = FarmTextDark
+                    ),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    val cancelText = when (currentLanguage) {
+                        AppLanguage.ENGLISH -> "Cancel, Keep Account"
+                        AppLanguage.TAGALOG -> "Kanselahin, Panatilihin"
+                        AppLanguage.TAGLISH -> "Cancel, Huwag Muna"
+                        AppLanguage.ILOCANO -> "Saan, Ibagkat"
+                        AppLanguage.CEBUANO -> "Kanselahin, Ipanalipod"
+                    }
+                    Text(
+                        text = cancelText,
+                        fontSize = 14.sp,
+                        color = FarmTextDark,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         },
-        dismissButton = {
-            OutlinedButton(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .testTag("button_cancel_delete_account")
-            ) {
-                val cancelText = when (currentLanguage) {
-                    AppLanguage.ENGLISH -> "Cancel, Keep Account"
-                    AppLanguage.TAGALOG -> "Kanselahin, Panatilihin"
-                    AppLanguage.TAGLISH -> "Cancel, Huwag Muna"
-                    AppLanguage.ILOCANO -> "Saan, Ibagkat"
-                    AppLanguage.CEBUANO -> "Kanselahin, Ipanalipod"
-                }
-                Text(
-                    text = cancelText,
-                    fontSize = 15.sp,
-                    color = FarmTextDark,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        },
+        dismissButton = null,
         containerColor = Color.White,
         shape = RoundedCornerShape(24.dp),
         modifier = modifier

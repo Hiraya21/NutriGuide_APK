@@ -4,8 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,6 +52,7 @@ fun LanguageDropdown(
                 .clip(RoundedCornerShape(20.dp))
                 .background(containerColor)
                 .border(1.dp, contentColor.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+                .defaultMinSize(minHeight = 36.dp)
                 .clickable { expanded = true }
                 .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
@@ -82,6 +85,8 @@ fun LanguageDropdown(
         ) {
             AppLanguage.values().forEach { language ->
                 DropdownMenuItem(
+                    modifier = Modifier.defaultMinSize(minHeight = 44.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     text = {
                         Text(
                             text = language.displayName,

@@ -158,28 +158,56 @@ fun AdminDashboardScreen(
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        onUpdateFarmerStatus(farmer.id, tempStatus)
-                        feedbackMessage = "Status ni ${farmer.fullName} pinalitan ng \"$tempStatus\"!"
-                        selectedFarmerForStatusChange = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
-                    shape = RoundedCornerShape(8.dp)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Save Status Change", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Button(
+                        onClick = {
+                            onUpdateFarmerStatus(farmer.id, tempStatus)
+                            feedbackMessage = "Status ni ${farmer.fullName} pinalitan ng \"$tempStatus\"!"
+                            selectedFarmerForStatusChange = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 44.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "Save Status Change",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = { selectedFarmerForStatusChange = null },
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 42.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            "Cancel",
+                            fontSize = 13.sp,
+                            color = Color(0xFF546E7A),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { selectedFarmerForStatusChange = null },
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Cancel", fontSize = 12.sp, color = Color(0xFF546E7A))
-                }
-            },
+            dismissButton = null,
             shape = RoundedCornerShape(14.dp),
             containerColor = Color.White
         )
@@ -1144,13 +1172,23 @@ private fun FarmerRegistryCard(
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(36.dp)
+                            .defaultMinSize(minHeight = 40.dp)
                             .testTag("btn_approve_farmer_${farmer.id}"),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                     ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Approve Farmer", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                "Approve Farmer",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                     }
                 }
 
@@ -1160,13 +1198,23 @@ private fun FarmerRegistryCard(
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier
                         .weight(1f)
-                        .height(36.dp)
+                        .defaultMinSize(minHeight = 40.dp)
                         .testTag("btn_change_status_${farmer.id}"),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                 ) {
-                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF0D47A1))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Change Status", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF0D47A1))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "Change Status",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
         }
@@ -1371,12 +1419,23 @@ private fun AdvisoryDispatcherTab(
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp)
-                    .testTag("btn_dispatch_broadcast")
+                    .defaultMinSize(minHeight = 48.dp)
+                    .testTag("btn_dispatch_broadcast"),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Dispatch Broadcast to All Farmers", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        "Dispatch Broadcast to All Farmers",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
             }
         }
     }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -361,28 +362,69 @@ fun OfflineInfoDialog(
             }
         },
         confirmButton = {
-            Button(
-                onClick = onRetrySync,
-                colors = ButtonDefaults.buttonColors(containerColor = FarmGreenPrimary)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Sync Now / Refresh")
+                Button(
+                    onClick = onRetrySync,
+                    colors = ButtonDefaults.buttonColors(containerColor = FarmGreenPrimary),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 44.dp)
+                        .testTag("btn_offline_dialog_sync"),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "Sync Now / Refresh",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = onToggleForcedOffline,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 42.dp)
+                        .testTag("btn_offline_dialog_simulate"),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        if (isForcedOffline) "Exit Sim" else "Simulate Offline",
+                        fontSize = 13.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
+                TextButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 40.dp)
+                        .testTag("btn_offline_dialog_close"),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        "Close",
+                        fontSize = 13.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
             }
         },
-        dismissButton = {
-            Row {
-                OutlinedButton(
-                    onClick = onToggleForcedOffline
-                ) {
-                    Text(if (isForcedOffline) "Exit Sim" else "Simulate Offline", fontSize = 12.sp)
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-                TextButton(onClick = onDismiss) {
-                    Text("Close")
-                }
-            }
-        }
+        dismissButton = null
     )
 }
 

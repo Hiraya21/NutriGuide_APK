@@ -1,6 +1,13 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -70,7 +78,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -876,7 +887,10 @@ fun FertilizerScreen(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
                         shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.testTag("btn_confirm_reset_npk")
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = 40.dp)
+                            .testTag("btn_confirm_reset_npk"),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text("Reset NPK", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
@@ -888,7 +902,10 @@ fun FertilizerScreen(
                             pendingPresetToApply = null
                         },
                         shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.testTag("btn_cancel_reset_npk")
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = 40.dp)
+                            .testTag("btn_cancel_reset_npk"),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text("Cancel", fontSize = 12.sp, color = FarmTextDark)
                     }
@@ -949,32 +966,131 @@ fun FertilizerScreen(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // RUN CALCULATION Button with large readable text
-        Button(
-            onClick = onRunCalculation,
+        // Glowing Pulse Animation for CALCULATE NEEDED BAGS & COST
+        val calculatePulseTransition = rememberInfiniteTransition(label = "calculate_button_pulse")
+
+        val pulseScale by calculatePulseTransition.animateFloat(
+            initialValue = 1.0f,
+            targetValue = 1.03f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "calcPulseScale"
+        )
+
+        val glowAlpha by calculatePulseTransition.animateFloat(
+            initialValue = 0.25f,
+            targetValue = 0.85f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "calcGlowAlpha"
+        )
+
+        val auraScale by calculatePulseTransition.animateFloat(
+            initialValue = 1.0f,
+            targetValue = 1.065f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "calcAuraScale"
+        )
+
+        // RUN CALCULATION Button with glowing pulse effect
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
-                .testTag("btn_run_calculation"),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = FarmGreenHeader,
-                contentColor = Color.White
-            )
+                .padding(vertical = 4.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Calculate,
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+            // Glowing pulsing aura ring behind the button
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .graphicsLayer {
+                        scaleX = auraScale
+                        scaleY = auraScale
+                    }
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF66BB6A).copy(alpha = glowAlpha * 0.55f),
+                                Color(0xFF2E7D32).copy(alpha = glowAlpha * 0.3f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+                    .border(
+                        width = 2.dp,
+                        brush = Brush.horizontalGradient(
+                            listOf(
+                                Color(0xFF81C784).copy(alpha = glowAlpha * 0.8f),
+                                Color(0xFFA5D6A7).copy(alpha = glowAlpha),
+                                Color(0xFF81C784).copy(alpha = glowAlpha * 0.8f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(18.dp)
+                    )
+            )
+
+            // Button with breathing scale, glowing border and dynamic shadow
+            Button(
+                onClick = onRunCalculation,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .defaultMinSize(minHeight = 56.dp)
+                    .graphicsLayer {
+                        scaleX = pulseScale
+                        scaleY = pulseScale
+                    }
+                    .shadow(
+                        elevation = (8.dp * pulseScale),
+                        shape = RoundedCornerShape(14.dp),
+                        spotColor = Color(0xFF43A047).copy(alpha = glowAlpha),
+                        ambientColor = Color(0xFF1B5E20).copy(alpha = glowAlpha)
+                    )
+                    .testTag("btn_run_calculation"),
+                shape = RoundedCornerShape(14.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = FarmGreenHeader,
+                    contentColor = Color.White
+                ),
+                border = BorderStroke(
+                    width = 2.dp,
+                    brush = Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFFA5D6A7).copy(alpha = glowAlpha),
+                            Color.White.copy(alpha = (glowAlpha * 0.9f).coerceIn(0f, 1f)),
+                            Color(0xFFA5D6A7).copy(alpha = glowAlpha)
+                        )
+                    )
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = formSolveButtonText,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.5.sp
-                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Calculate,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = formSolveButtonText,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 0.5.sp,
+                        color = Color.White,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
             }
         }
 

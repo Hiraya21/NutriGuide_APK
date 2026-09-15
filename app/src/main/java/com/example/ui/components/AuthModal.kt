@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -482,14 +484,25 @@ private fun FarmerLoginTab(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .defaultMinSize(minHeight = 48.dp)
                 .testTag("btn_submit_farmer_login"),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = FarmGreenPrimary),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.Agriculture, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Login sa Farm Account", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.Agriculture, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Login sa Farm Account",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -682,14 +695,25 @@ private fun FarmerRegisterTab(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .defaultMinSize(minHeight = 48.dp)
                 .testTag("btn_submit_farmer_reg"),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = FarmGreenPrimary),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("I-rehistro ang Aking Account", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "I-rehistro ang Aking Account",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
         }
     }
 }
@@ -774,27 +798,46 @@ private fun AdminPersonnelLoginTab(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
                             onClick = onOpenAdminDashboard,
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
+                            shape = RoundedCornerShape(10.dp),
                             modifier = Modifier
-                                .weight(1f)
-                                .testTag("btn_go_to_admin_dash")
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = 44.dp)
+                                .testTag("btn_go_to_admin_dash"),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                         ) {
-                            Icon(Icons.Default.AdminPanelSettings, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Open Dashboard", fontSize = 12.sp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.Default.AdminPanelSettings, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Open Dashboard", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
 
                         OutlinedButton(
                             onClick = onLogout,
-                            modifier = Modifier.testTag("btn_admin_logout")
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = 42.dp)
+                                .testTag("btn_admin_logout"),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                         ) {
-                            Text("Switch to Farmer", fontSize = 12.sp, color = Color(0xFFD32F2F))
+                            Text(
+                                text = "Switch to Farmer Account",
+                                fontSize = 13.sp,
+                                color = Color(0xFFD32F2F),
+                                fontWeight = FontWeight.Medium,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
                         }
                     }
                 }
@@ -874,14 +917,25 @@ private fun AdminPersonnelLoginTab(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .defaultMinSize(minHeight = 48.dp)
                     .testTag("btn_submit_admin_login"),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Verify & Enter Admin Dashboard", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Verify & Enter Admin Dashboard",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))

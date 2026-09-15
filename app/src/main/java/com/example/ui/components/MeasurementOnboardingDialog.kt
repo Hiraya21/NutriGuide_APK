@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.window.DialogProperties
@@ -245,10 +247,14 @@ fun MeasurementOnboardingDialog(
                 if (step > 0) {
                     TextButton(
                         onClick = { step-- },
-                        modifier = Modifier.testTag("btn_onboarding_prev")
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = 44.dp)
+                            .testTag("btn_onboarding_prev"),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.ChevronLeft, contentDescription = null)
+                            Spacer(modifier = Modifier.width(2.dp))
                             Text(
                                 text = when (currentLanguage) {
                                     AppLanguage.ENGLISH -> "Back"
@@ -257,7 +263,8 @@ fun MeasurementOnboardingDialog(
                                     AppLanguage.ILOCANO -> "Agsubli"
                                     AppLanguage.CEBUANO -> "Balik"
                                 },
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp
                             )
                         }
                     }
@@ -278,7 +285,10 @@ fun MeasurementOnboardingDialog(
                         contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.testTag("btn_onboarding_next")
+                    modifier = Modifier
+                        .defaultMinSize(minHeight = 44.dp)
+                        .testTag("btn_onboarding_next"),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val btnText = if (step < totalSteps - 1) {
@@ -298,7 +308,7 @@ fun MeasurementOnboardingDialog(
                                 AppLanguage.CEBUANO -> "Nasabtan!"
                             }
                         }
-                        Text(text = btnText, fontWeight = FontWeight.Bold)
+                        Text(text = btnText, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = if (step < totalSteps - 1) Icons.Default.ChevronRight else Icons.Default.Check,
@@ -312,7 +322,10 @@ fun MeasurementOnboardingDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                modifier = Modifier.testTag("btn_onboarding_skip")
+                modifier = Modifier
+                    .defaultMinSize(minHeight = 44.dp)
+                    .testTag("btn_onboarding_skip"),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = when (currentLanguage) {
@@ -322,6 +335,7 @@ fun MeasurementOnboardingDialog(
                         AppLanguage.ILOCANO -> "Laktawan"
                         AppLanguage.CEBUANO -> "Laktawan"
                     },
+                    fontSize = 13.sp,
                     color = FarmTextSecondary
                 )
             }

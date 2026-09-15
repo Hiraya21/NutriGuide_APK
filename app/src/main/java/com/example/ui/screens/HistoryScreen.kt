@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -1174,8 +1175,9 @@ fun HistoryScreen(
                     ),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
-                        .height(44.dp)
-                        .testTag("btn_save_contact_info")
+                        .defaultMinSize(minHeight = 44.dp)
+                        .testTag("btn_save_contact_info"),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = when (currentLanguage) {
@@ -1186,7 +1188,8 @@ fun HistoryScreen(
                             AppLanguage.CEBUANO -> "I-save ang Nausab"
                         },
                         fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             },
@@ -1194,12 +1197,14 @@ fun HistoryScreen(
                 OutlinedButton(
                     onClick = { showEditContactDialog = false },
                     shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.height(44.dp)
+                    modifier = Modifier.defaultMinSize(minHeight = 44.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = "Cancel",
                         fontSize = 13.sp,
-                        color = FarmTextDark
+                        color = FarmTextDark,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             },
@@ -1252,45 +1257,60 @@ fun HistoryScreen(
                 )
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        onDeleteFarm(farm)
-                        farmToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = FarmRed,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp),
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
-                        .testTag("button_confirm_delete_farm_history")
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Yes, Delete Record",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Button(
+                        onClick = {
+                            onDeleteFarm(farm)
+                            farmToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FarmRed,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 48.dp)
+                            .testTag("button_confirm_delete_farm_history"),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = "Yes, Delete Record",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = { farmToDelete = null },
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, FarmBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 46.dp)
+                            .testTag("button_cancel_delete_farm_history"),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = FarmTextDark
+                        ),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            fontSize = 14.sp,
+                            color = FarmTextDark,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { farmToDelete = null },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
-                        .testTag("button_cancel_delete_farm_history")
-                ) {
-                    Text(
-                        text = "Cancel",
-                        fontSize = 14.sp,
-                        color = FarmTextDark,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            },
+            dismissButton = null,
             containerColor = Color.White,
             shape = RoundedCornerShape(20.dp)
         )
@@ -1340,45 +1360,60 @@ fun HistoryScreen(
                 )
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        onDeleteAllFarms()
-                        showDeleteAllDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = FarmRed,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp),
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
-                        .testTag("button_confirm_clear_all_history")
-                    ) {
-                    Text(
-                        text = "Yes, Clear All History",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { showDeleteAllDialog = false },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
-                        .testTag("button_cancel_clear_all_history")
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Cancel",
-                        fontSize = 14.sp,
-                        color = FarmTextDark,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Button(
+                        onClick = {
+                            onDeleteAllFarms()
+                            showDeleteAllDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FarmRed,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 48.dp)
+                            .testTag("button_confirm_clear_all_history"),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = "Yes, Clear All History",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = { showDeleteAllDialog = false },
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, FarmBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 46.dp)
+                            .testTag("button_cancel_clear_all_history"),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = FarmTextDark
+                        ),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            fontSize = 14.sp,
+                            color = FarmTextDark,
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             },
+            dismissButton = null,
             containerColor = Color.White,
             shape = RoundedCornerShape(20.dp)
         )

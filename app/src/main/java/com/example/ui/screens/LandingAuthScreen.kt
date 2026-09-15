@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -623,10 +624,14 @@ private fun PortalAccessCard(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp)
-                    .testTag(primaryButtonTag)
+                    .defaultMinSize(minHeight = 48.dp)
+                    .testTag(primaryButtonTag),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 10.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Icon(
                         imageVector = effectiveIcon,
                         contentDescription = null,
@@ -636,7 +641,8 @@ private fun PortalAccessCard(
                     Text(
                         text = primaryButtonText,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             }
@@ -650,10 +656,14 @@ private fun PortalAccessCard(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(42.dp)
-                        .testTag(secondaryButtonTag ?: "btn_secondary_action")
+                        .defaultMinSize(minHeight = 44.dp)
+                        .testTag(secondaryButtonTag ?: "btn_secondary_action"),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Default.PersonAdd,
                             contentDescription = null,
@@ -663,7 +673,8 @@ private fun PortalAccessCard(
                         Text(
                             text = secondaryButtonText,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
                 }
@@ -989,24 +1000,31 @@ private fun FarmerLoginForm(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .defaultMinSize(minHeight = 48.dp)
                 .testTag("landing_btn_submit_farmer_login"),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = FarmBrownPrimary),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.Agriculture, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = when (currentLanguage) {
-                    AppLanguage.ENGLISH -> "Sign In to Farm Account"
-                    AppLanguage.TAGALOG -> "Mag-login sa Aking Farm Account"
-                    AppLanguage.TAGLISH -> "Sign In to Farm Account"
-                    AppLanguage.ILOCANO -> "Sumrek iti Farm Account"
-                    AppLanguage.CEBUANO -> "Mag-login sa Farm Account"
-                },
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.Agriculture, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = when (currentLanguage) {
+                        AppLanguage.ENGLISH -> "Sign In to Farm Account"
+                        AppLanguage.TAGALOG -> "Mag-login sa Aking Farm Account"
+                        AppLanguage.TAGLISH -> "Sign In to Farm Account"
+                        AppLanguage.ILOCANO -> "Sumrek iti Farm Account"
+                        AppLanguage.CEBUANO -> "Mag-login sa Farm Account"
+                    },
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -1342,24 +1360,31 @@ private fun FarmerRegisterForm(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .defaultMinSize(minHeight = 48.dp)
                 .testTag("landing_btn_submit_farmer_reg"),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = FarmBrownPrimary),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = when (currentLanguage) {
-                    AppLanguage.ENGLISH -> "Complete Sign Up (Register)"
-                    AppLanguage.TAGALOG -> "Kumpletuhin ang Pag-sign Up (Register)"
-                    AppLanguage.TAGLISH -> "Complete Sign Up (Register)"
-                    AppLanguage.ILOCANO -> "Ging-ginnawaen ti Panagrehistro"
-                    AppLanguage.CEBUANO -> "Kompletuha ang Pagparehistro"
-                },
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = when (currentLanguage) {
+                        AppLanguage.ENGLISH -> "Complete Sign Up (Register)"
+                        AppLanguage.TAGALOG -> "Kumpletuhin ang Pag-sign Up (Register)"
+                        AppLanguage.TAGLISH -> "Complete Sign Up (Register)"
+                        AppLanguage.ILOCANO -> "Ging-ginnawaen ti Panagrehistro"
+                        AppLanguage.CEBUANO -> "Kompletuha ang Pagparehistro"
+                    },
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -1556,24 +1581,31 @@ private fun AdminLoginForm(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .defaultMinSize(minHeight = 48.dp)
                 .testTag("landing_btn_submit_admin_login"),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 10.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D47A1)),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = when (currentLanguage) {
-                    AppLanguage.ENGLISH -> "Verify Credentials & Enter Console"
-                    AppLanguage.TAGALOG -> "I-verify ang Datos at Pumasok sa Console"
-                    AppLanguage.TAGLISH -> "Verify Credentials & Enter Console"
-                    AppLanguage.ILOCANO -> "Beripikaren ti Datos ken Sumrek"
-                    AppLanguage.CEBUANO -> "Pamatud-i ang Datos ug Sumulod"
-                },
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(Icons.Default.Shield, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = when (currentLanguage) {
+                        AppLanguage.ENGLISH -> "Verify Credentials & Enter Console"
+                        AppLanguage.TAGALOG -> "I-verify ang Datos at Pumasok sa Console"
+                        AppLanguage.TAGLISH -> "Verify Credentials & Enter Console"
+                        AppLanguage.ILOCANO -> "Beripikaren ti Datos ken Sumrek"
+                        AppLanguage.CEBUANO -> "Pamatud-i ang Datos ug Sumulod"
+                    },
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))

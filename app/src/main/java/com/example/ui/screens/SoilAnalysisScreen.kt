@@ -16,8 +16,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -1249,8 +1251,9 @@ fun SoilAnalysisScreen(
                                     onClick = { isSoilCameraFullScreen = false },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(44.dp),
+                                        .defaultMinSize(minHeight = 44.dp),
                                     shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.6f))
                                 ) {
                                     Icon(Icons.Default.FullscreenExit, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
@@ -1539,18 +1542,24 @@ fun SoilAnalysisScreen(
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
                                 shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.testTag("btn_confirm_reset_lab")
+                                modifier = Modifier
+                                    .defaultMinSize(minHeight = 40.dp)
+                                    .testTag("btn_confirm_reset_lab"),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                Text("Reset Data", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Reset Data", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
                             }
                         },
                         dismissButton = {
                             OutlinedButton(
                                 onClick = { showResetLabConfirmDialog = false },
                                 shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.testTag("btn_cancel_reset_lab")
+                                modifier = Modifier
+                                    .defaultMinSize(minHeight = 40.dp)
+                                    .testTag("btn_cancel_reset_lab"),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                Text("Cancel", fontSize = 12.sp, color = FarmTextDark)
+                                Text("Cancel", fontSize = 12.5.sp, color = FarmTextDark)
                             }
                         },
                         containerColor = Color.White,
@@ -2238,7 +2247,8 @@ fun SavedReportCard(
                     onClick = onViewDashboard,
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = FarmBrownHeader),
-                    modifier = Modifier.height(34.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier.defaultMinSize(minHeight = 34.dp)
                 ) {
                     Text("View Dashboard", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
