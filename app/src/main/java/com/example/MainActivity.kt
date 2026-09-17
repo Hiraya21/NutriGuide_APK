@@ -138,6 +138,7 @@ fun RiceFarmAssistantApp(
     val bookletArticles by viewModel.bookletArticles.collectAsStateWithLifecycle()
 
     // History states
+    val allFarms by viewModel.allFarms.collectAsStateWithLifecycle()
     val historySearchQuery by viewModel.historySearchQuery.collectAsStateWithLifecycle()
     val filteredFarms by viewModel.filteredFarms.collectAsStateWithLifecycle()
     val totalFarmsCount by viewModel.totalFarmsCount.collectAsStateWithLifecycle()
@@ -210,10 +211,22 @@ fun RiceFarmAssistantApp(
             farmerRegistry = farmerRegistry,
             auditLogs = auditLogs,
             currentLanguage = currentLanguage,
+            farmRecords = allFarms,
             onBackToFarmerView = { viewModel.closeAdminDashboard() },
             onLogout = { viewModel.promptLogout() },
             onUpdateFarmerStatus = { id, status -> viewModel.updateFarmerStatus(id, status) },
-            onApproveFarmer = { id -> viewModel.approveFarmer(id) }
+            onApproveFarmer = { id -> viewModel.approveFarmer(id) },
+            onDeleteFarmer = { id -> viewModel.deleteFarmer(id) },
+            onEditFarmer = { farmer -> viewModel.editFarmer(farmer) },
+            onAddFarmer = { farmer -> viewModel.addFarmer(farmer) },
+            onResetFarmerRegistry = { viewModel.resetFarmerRegistry() },
+            onDeleteFarmRecord = { farm -> viewModel.adminDeleteFarmRecord(farm) },
+            onUpdateFarmRecord = { farm -> viewModel.adminUpdateFarmRecord(farm) },
+            onInsertFarmRecord = { farm -> viewModel.adminInsertFarmRecord(farm) },
+            onDeleteAllFarms = { viewModel.adminDeleteAllFarms() },
+            onSeedSampleFarms = { viewModel.adminSeedSampleFarms() },
+            onDeleteAuditLog = { logId -> viewModel.deleteAuditLog(logId) },
+            onClearAuditLogs = { viewModel.clearAllAuditLogs() }
         )
     } else {
         Scaffold(

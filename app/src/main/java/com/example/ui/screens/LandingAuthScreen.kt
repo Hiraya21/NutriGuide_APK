@@ -98,6 +98,7 @@ import com.example.ui.theme.FarmBorder
 import com.example.ui.theme.FarmBrownDark
 import com.example.ui.theme.FarmBrownHeader
 import com.example.ui.theme.FarmBrownLight
+import com.example.ui.components.NutriGuideLogo
 import com.example.ui.theme.FarmBrownPrimary
 import com.example.ui.theme.FarmBrownSecondary
 import com.example.ui.theme.FarmGreenDark
@@ -269,16 +270,35 @@ fun LandingAuthScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // Title & Description
-                    Text(
-                        text = "NutriGuide PH",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    // Title & Description with Official Emblem Logo
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        NutriGuideLogo(
+                            size = 54.dp,
+                            elevation = 4.dp,
+                            showBorder = true,
+                            borderColor = Color(0xFFFFD54F)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "NutriGuide PH",
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Department of Agriculture • PhilRice",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFFFD54F)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = when (currentLanguage) {
                             AppLanguage.ENGLISH -> "Precision Farm Land Measurement & RCEF Fertilizer Management System"

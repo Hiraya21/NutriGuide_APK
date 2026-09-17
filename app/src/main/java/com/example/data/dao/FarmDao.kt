@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.example.data.model.FarmRecord
 import kotlinx.coroutines.flow.Flow
 
@@ -15,6 +16,9 @@ interface FarmDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFarm(farm: FarmRecord)
+
+    @Update
+    suspend fun updateFarm(farm: FarmRecord)
 
     @Delete
     suspend fun deleteFarm(farm: FarmRecord)

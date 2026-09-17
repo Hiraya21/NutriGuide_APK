@@ -382,6 +382,59 @@ class AuthRepository(context: Context) {
         updateFarmerStatus(farmerId, "Approved (CLSU Soil-Certified)", adminName)
     }
 
+    fun recordAdminAction(action: String, adminName: String = "Arjay Aquino", personnelId: String = "CLSU-DSS-HEAD-01") {
+        val log = AdminAuditLog(
+            id = UUID.randomUUID().toString().take(6),
+            personnelName = adminName,
+            personnelId = personnelId,
+            action = action,
+            timestampFormatted = SimpleDateFormat("MMM dd, yyyy • h:mm a", Locale.US).format(Date()),
+            ipOrDevice = "CLSU Dept. of Soil Science Console"
+        )
+        _auditLogs.value = listOf(log) + _auditLogs.value
+    }
+
+    fun deleteFarmer(farmerId: String, adminName: String = "Arjay Aquino") {
+        val target = _farmerRegistry.value.find { it.id == farmerId }
+        val name = target?.fullName ?: farmerId
+        val rsbsa = target?.rsbsaId ?: ""
+        _farmerRegistry.value = _farmerRegistry.value.filter { it.id != farmerId }
+        recordAdminAction("Deleted Farmer Record '$name' ($rsbsa) from Registry", adminName)
+    }
+
+    fun editFarmer(farmer: FarmerRegistryItem, adminName: String = "Arjay Aquino") {
+        _farmerRegistry.value = _farmerRegistry.value.map {
+            if (it.id == farmer.id) farmer else it
+        }
+        recordAdminAction("Edited Farmer Details for '${farmer.fullName}' (${farmer.rsbsaId})", adminName)
+    }
+
+    fun addFarmer(farmer: FarmerRegistryItem, adminName: String = "Arjay Aquino") {
+        _farmerRegistry.value = listOf(farmer) + _farmerRegistry.value
+        recordAdminAction("Added New Farmer '${farmer.fullName}' (${farmer.rsbsaId}) to Registry", adminName)
+    }
+
+    fun resetFarmerRegistryToDefaults(adminName: String = "Arjay Aquino") {
+        _farmerRegistry.value = loadDefaultFarmerRegistry()
+        recordAdminAction("Reset Farmer Registry to Official CLSU Seed Data", adminName)
+    }
+
+    fun deleteAuditLog(logId: String) {
+        _auditLogs.value = _auditLogs.value.filter { it.id != logId }
+    }
+
+    fun clearAllAuditLogs(adminName: String = "Arjay Aquino") {
+        val resetLog = AdminAuditLog(
+            id = UUID.randomUUID().toString().take(6),
+            personnelName = adminName,
+            personnelId = "CLSU-DSS-HEAD-01",
+            action = "Audit Log Console Cleared & Re-initialized by Head of Department",
+            timestampFormatted = SimpleDateFormat("MMM dd, yyyy • h:mm a", Locale.US).format(Date()),
+            ipOrDevice = "CLSU Dept. of Soil Science Console"
+        )
+        _auditLogs.value = listOf(resetLog)
+    }
+
     fun switchRoleToFarmer() {
         _currentUser.value = defaultFarmer
         savePersistedUser(defaultFarmer, isActiveSession = true)

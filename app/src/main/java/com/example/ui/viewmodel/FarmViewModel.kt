@@ -256,6 +256,128 @@ class FarmViewModel(application: Application) : AndroidViewModel(application) {
         authRepository.approveFarmer(farmerId, adminName)
     }
 
+    fun deleteFarmer(farmerId: String) {
+        val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+        authRepository.deleteFarmer(farmerId, adminName)
+    }
+
+    fun editFarmer(farmer: FarmerRegistryItem) {
+        val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+        authRepository.editFarmer(farmer, adminName)
+    }
+
+    fun addFarmer(farmer: FarmerRegistryItem) {
+        val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+        authRepository.addFarmer(farmer, adminName)
+    }
+
+    fun resetFarmerRegistry() {
+        val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+        authRepository.resetFarmerRegistryToDefaults(adminName)
+    }
+
+    fun deleteAuditLog(logId: String) {
+        authRepository.deleteAuditLog(logId)
+    }
+
+    fun clearAllAuditLogs() {
+        val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+        authRepository.clearAllAuditLogs(adminName)
+    }
+
+    fun adminDeleteFarmRecord(farm: FarmRecord) {
+        viewModelScope.launch {
+            repository.deleteFarm(farm)
+            val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+            authRepository.recordAdminAction(
+                "Deleted Farm Record #${farm.id} '${farm.name}' (${farm.areaHectares} ha) from SQLite Database",
+                adminName
+            )
+        }
+    }
+
+    fun adminUpdateFarmRecord(farm: FarmRecord) {
+        viewModelScope.launch {
+            repository.updateFarm(farm)
+            val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+            authRepository.recordAdminAction(
+                "Updated Farm Record #${farm.id} '${farm.name}' (${farm.areaHectares} ha, ${farm.cropType}) in SQLite Database",
+                adminName
+            )
+        }
+    }
+
+    fun adminInsertFarmRecord(farm: FarmRecord) {
+        viewModelScope.launch {
+            repository.insertFarm(farm)
+            val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+            authRepository.recordAdminAction(
+                "Created New Farm Record '${farm.name}' (${farm.areaHectares} ha) in SQLite Database",
+                adminName
+            )
+        }
+    }
+
+    fun adminDeleteAllFarms() {
+        viewModelScope.launch {
+            repository.deleteAllFarms()
+            val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+            authRepository.recordAdminAction(
+                "PURGED/WIPED all Farm Records from SQLite Database",
+                adminName
+            )
+        }
+    }
+
+    fun adminSeedSampleFarms() {
+        viewModelScope.launch {
+            val adminName = currentUser.value.fullName.ifBlank { "Arjay Aquino" }
+            val sampleFarms = listOf(
+                FarmRecord(
+                    name = "CLSU Experimental Paddy A-1",
+                    dateFormatted = "Aug 26, 2026",
+                    timestamp = System.currentTimeMillis() - 86400000L * 2,
+                    areaHectares = 2.85,
+                    perimeterMeters = 680.0,
+                    cropType = "Lowland Irrigated Rice (NSIC Rc 222)",
+                    pointsJson = "[]",
+                    walkedMeters = 680.0,
+                    gpsAccuracy = "High (RTK-Grade)",
+                    boundaryPointsCount = 8
+                ),
+                FarmRecord(
+                    name = "Maligaya Demonstration Lot 4",
+                    dateFormatted = "Aug 24, 2026",
+                    timestamp = System.currentTimeMillis() - 86400000L * 4,
+                    areaHectares = 3.40,
+                    perimeterMeters = 745.0,
+                    cropType = "Hybrid Rice (Mestiso 20)",
+                    pointsJson = "[]",
+                    walkedMeters = 745.0,
+                    gpsAccuracy = "High",
+                    boundaryPointsCount = 6
+                ),
+                FarmRecord(
+                    name = "Bantug Agronomy Research Field",
+                    dateFormatted = "Aug 20, 2026",
+                    timestamp = System.currentTimeMillis() - 86400000L * 8,
+                    areaHectares = 1.95,
+                    perimeterMeters = 560.0,
+                    cropType = "Green Super Rice (NSIC Rc 480)",
+                    pointsJson = "[]",
+                    walkedMeters = 560.0,
+                    gpsAccuracy = "Fair",
+                    boundaryPointsCount = 5
+                )
+            )
+            sampleFarms.forEach { repository.insertFarm(it) }
+            authRepository.recordAdminAction(
+                "Seeded 3 Certified Research Paddy Records into SQLite Database",
+                adminName
+            )
+        }
+    }
+
     fun updateContactInfo(
         fullName: String,
         phoneNumber: String,

@@ -149,14 +149,14 @@ fun TopNavBar(
                 .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // App / Section Brand Leaf Icon
-            Icon(
-                imageVector = Icons.Default.Grass,
-                contentDescription = null,
-                tint = FarmGreenLight,
-                modifier = Modifier.size(22.dp)
+            // App / Section Brand NutriGuide Emblem Logo
+            NutriGuideLogo(
+                size = 26.dp,
+                elevation = 1.dp,
+                showBorder = true,
+                borderColor = Color(0xFFFFD54F)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             // Responsive Screen Title
             Text(

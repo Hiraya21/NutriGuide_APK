@@ -11,6 +11,10 @@ class FarmRepository(private val farmDao: FarmDao) {
         farmDao.insertFarm(farm)
     }
 
+    suspend fun updateFarm(farm: FarmRecord) {
+        farmDao.updateFarm(farm)
+    }
+
     suspend fun deleteFarm(farm: FarmRecord) {
         farmDao.deleteFarm(farm)
     }
