@@ -158,10 +158,10 @@ class FarmViewModel(application: Application) : AndroidViewModel(application) {
     private val _isAuthModalOpen = MutableStateFlow(false)
     val isAuthModalOpen = _isAuthModalOpen.asStateFlow()
 
-    private val _isAdminDashboardOpen = MutableStateFlow(initialHasSession && authRepository.currentUser.value.role != UserRole.FARMER)
+    private val _isAdminDashboardOpen = MutableStateFlow(false)
     val isAdminDashboardOpen = _isAdminDashboardOpen.asStateFlow()
 
-    private val _isLandingScreenOpen = MutableStateFlow(!initialHasSession)
+    private val _isLandingScreenOpen = MutableStateFlow(false)
     val isLandingScreenOpen = _isLandingScreenOpen.asStateFlow()
 
     private val _isLogoutConfirmationOpen = MutableStateFlow(false)
@@ -811,7 +811,7 @@ class FarmViewModel(application: Application) : AndroidViewModel(application) {
     // ----------------------------------------------------
     // FERTILIZER CALCULATOR STATE & NPK TARGETS
     // ----------------------------------------------------
-    private val _fertilizerFarmArea = MutableStateFlow("1.0")
+    private val _fertilizerFarmArea = MutableStateFlow("")
     val fertilizerFarmArea = _fertilizerFarmArea.asStateFlow()
 
     private val _targetN = MutableStateFlow("120")
@@ -1034,7 +1034,7 @@ class FarmViewModel(application: Application) : AndroidViewModel(application) {
 
             if (savedCrop != null || savedArea != null || savedTargetN != null) {
                 if (savedCrop != null) _selectedCrop.value = savedCrop
-                if (savedArea != null) _fertilizerFarmArea.value = savedArea
+                if (savedArea != null && savedArea != "2.4" && savedArea != "1.0") _fertilizerFarmArea.value = savedArea
                 if (savedTargetN != null) _targetN.value = savedTargetN
                 prefs.getString("draft_target_p", null)?.let { _targetP.value = it }
                 prefs.getString("draft_target_k", null)?.let { _targetK.value = it }
@@ -1575,9 +1575,18 @@ class FarmViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
+        // Remove existing Farm Measurement History data so user starts with a clean slate
+        val hasClearedHistory = prefs.getBoolean("farm_history_cleared_v3", false)
+        if (!hasClearedHistory) {
+            viewModelScope.launch {
+                repository.deleteAllFarms()
+                prefs.edit().putBoolean("farm_history_cleared_v3", true).apply()
+            }
+        }
+
         if (initialHasSession) {
             val user = authRepository.currentUser.value
-            if (user.farmAreaHectares > 0) {
+            if (user.farmAreaHectares > 0.0 && user.farmAreaHectares != 2.4) {
                 _fertilizerFarmArea.value = user.farmAreaHectares.toString()
             }
             if (user.primaryCrop.isNotBlank()) {

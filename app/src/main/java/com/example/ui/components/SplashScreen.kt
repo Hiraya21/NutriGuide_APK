@@ -15,6 +15,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,7 +40,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -55,8 +59,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -75,28 +79,44 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * High-craft opening splash animation centered entirely on the official NutriGuide emblem.
+ * Ultra-smooth cinematic opening animation based on the official NutriGuide Emblem Logo.
  *
- * Sequence of logo motifs:
- * 1. Scalloped Rosette Expansion: 16-lobe rosette blooming and rotating with spring physics.
- * 2. Stitched Inner Ring: Dashed perimeter circle tracing around the medallion.
- * 3. Radiating Furrow Arcs: 3 concentric curved waves pulsing out from the right side.
- * 4. Sprouting Leaf: Organic unfurl at the bottom-left of the seal.
- * 5. Carabao Emblem & Golden Shimmer: Full emblem reveals with diagonal light sweep.
- * 6. Brand Typography & Subtitle: "NutriGuide" display title and DA-PhilRice tags.
+ * Sequence of visual elements:
+ * 1. Deep Field Auroral Background with drifting organic light gradients
+ * 2. 16-Lobed Scalloped Rosette Seal blooming with elastic spring physics
+ * 3. Central Emblem Landing with expanding agricultural shockwave ripples
+ * 4. Stitched perimeter tracing + 3 pulsing radar soil furrow arcs
+ * 5. Organic leaf seedling unfurling at lower left
+ * 6. Specular lens-flare gleam sweep across the medallion
+ * 7. Bioluminescent nutrient spores floating upward
+ * 8. Kinetic display typography and system calibration bar
+ * 9. Interactive tap ripple and instant skip affordance
  */
 @Composable
 fun SplashScreen(
     onAnimationFinished: () -> Unit
 ) {
     // Interactive dismiss flag to prevent multiple triggers
+    var isFinished by remember { mutableStateOf(false) }
+    fun finish() {
+        if (!isFinished) {
+            isFinished = true
+            onAnimationFinished()
+        }
+    }
+
     val interactionSource = remember { MutableInteractionSource() }
 
     // Core Animation States
-    val rosetteScale = remember { Animatable(0.2f) }
-    val rosetteRotation = remember { Animatable(-45f) }
+    val rosetteScale = remember { Animatable(0.15f) }
+    val rosetteRotation = remember { Animatable(-60f) }
     val rosetteAlpha = remember { Animatable(0f) }
 
+    // Shockwave pulse from center
+    val shockwaveScale = remember { Animatable(0.2f) }
+    val shockwaveAlpha = remember { Animatable(0f) }
+
+    // Logo internal elements
     val stitchProgress = remember { Animatable(0f) }
     val furrowArc1 = remember { Animatable(0f) }
     val furrowArc2 = remember { Animatable(0f) }
@@ -104,14 +124,22 @@ fun SplashScreen(
     val leafGrowth = remember { Animatable(0f) }
 
     val emblemAlpha = remember { Animatable(0f) }
-    val emblemScale = remember { Animatable(0.7f) }
-    val shimmerOffset = remember { Animatable(-300f) }
+    val emblemScale = remember { Animatable(0.5f) }
+    val emblemElevation = remember { Animatable(0f) }
+    val shimmerOffset = remember { Animatable(-350f) }
 
     val titleAlpha = remember { Animatable(0f) }
-    val titleOffsetY = remember { Animatable(30f) }
+    val titleOffsetY = remember { Animatable(36f) }
+    val badgeScale = remember { Animatable(0f) }
     val subtitleAlpha = remember { Animatable(0f) }
+    val progressValue = remember { Animatable(0f) }
     val skipAlpha = remember { Animatable(0f) }
     val screenFadeOut = remember { Animatable(1f) }
+
+    // Tap Ripple effect coordinates
+    var tapRippleCenter by remember { mutableStateOf<Offset?>(null) }
+    val tapRippleRadius = remember { Animatable(0f) }
+    val tapRippleAlpha = remember { Animatable(0f) }
 
     // Infinite Ambient Transitions
     val infiniteTransition = rememberInfiniteTransition(label = "ambient_effects")
@@ -121,7 +149,7 @@ fun SplashScreen(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(28000, easing = LinearEasing),
+            animation = tween(32000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "ambient_spin"
@@ -130,36 +158,58 @@ fun SplashScreen(
     // Breathing pulse for the glowing aura
     val auraPulse by infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = 1.15f,
+        targetValue = 1.18f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1300, easing = FastOutSlowInEasing),
+            animation = tween(1400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "aura_pulse"
     )
 
-    // Gentle floating particles offset
+    // Radar pulse wave loop for furrow arcs
+    val radarPulse by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "radar_pulse"
+    )
+
+    // Gentle floating particles phase
     val particlePhase by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
+            animation = tween(4500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "particle_phase"
     )
 
-    // Master Animation Timeline
+    // Auroral glow drift
+    val auroraDrift by infiniteTransition.animateFloat(
+        initialValue = -50f,
+        targetValue = 50f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "aurora_drift"
+    )
+
+    // Master Cinematic Animation Timeline
     LaunchedEffect(Unit) {
         // Allow user to see the skip affordance quickly
         launch {
-            delay(500)
-            skipAlpha.animateTo(1f, animationSpec = tween(400))
+            delay(400)
+            skipAlpha.animateTo(1f, animationSpec = tween(350))
         }
 
-        // Phase 1: Scalloped Rosette bloom & rotation (0ms - 550ms)
+        // Phase 1: Scalloped Rosette bloom & rotation (0ms - 500ms)
         launch {
-            rosetteAlpha.animateTo(1f, animationSpec = tween(350, easing = FastOutSlowInEasing))
+            rosetteAlpha.animateTo(1f, animationSpec = tween(300, easing = FastOutSlowInEasing))
         }
         launch {
             rosetteRotation.animateTo(
@@ -178,73 +228,103 @@ fun SplashScreen(
             )
         )
 
-        // Phase 2: Stitched Ring tracing + Furrow arcs propagation (400ms - 900ms)
+        // Center shockwave ripple when medallion strikes
         launch {
+            delay(280)
+            shockwaveAlpha.snapTo(0.85f)
+            launch {
+                shockwaveScale.animateTo(2.4f, animationSpec = tween(900, easing = FastOutSlowInEasing))
+            }
+            shockwaveAlpha.animateTo(0f, animationSpec = tween(900, easing = FastOutSlowInEasing))
+        }
+
+        // Phase 2: Stitched Ring tracing + Furrow arcs propagation (350ms - 850ms)
+        launch {
+            delay(150)
             stitchProgress.animateTo(1f, animationSpec = tween(650, easing = FastOutSlowInEasing))
         }
 
-        // Staggered furrow arcs (the 3 lines on the right of the logo)
+        // Staggered furrow arcs (3 lines on the right of the logo)
         launch {
-            delay(120)
-            furrowArc1.animateTo(1f, animationSpec = tween(450, easing = FastOutSlowInEasing))
+            delay(250)
+            furrowArc1.animateTo(1f, animationSpec = tween(400, easing = FastOutSlowInEasing))
         }
         launch {
-            delay(220)
-            furrowArc2.animateTo(1f, animationSpec = tween(450, easing = FastOutSlowInEasing))
+            delay(350)
+            furrowArc2.animateTo(1f, animationSpec = tween(400, easing = FastOutSlowInEasing))
         }
         launch {
-            delay(320)
-            furrowArc3.animateTo(1f, animationSpec = tween(450, easing = FastOutSlowInEasing))
+            delay(450)
+            furrowArc3.animateTo(1f, animationSpec = tween(400, easing = FastOutSlowInEasing))
         }
 
         // Leaf sprout at bottom left
         launch {
-            delay(200)
+            delay(300)
             leafGrowth.animateTo(
                 1f,
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            )
-        }
-
-        // Phase 3: High-Res Logo Medallion sharp reveal with shimmer sweep (700ms - 1300ms)
-        launch {
-            emblemAlpha.animateTo(1f, animationSpec = tween(400, easing = FastOutSlowInEasing))
-        }
-        launch {
-            emblemScale.animateTo(
-                1f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioLowBouncy,
                     stiffness = Spring.StiffnessLow
                 )
             )
         }
 
-        delay(400)
-        // Shimmer glint sweeps diagonally across the emblem
-        shimmerOffset.animateTo(350f, animationSpec = tween(700, easing = FastOutSlowInEasing))
-
-        // Phase 4: Brand Typography entrance (1200ms - 1700ms)
+        // Phase 3: High-Res Logo Medallion sharp reveal with specular shimmer sweep (450ms - 1100ms)
         launch {
-            titleAlpha.animateTo(1f, animationSpec = tween(500, easing = FastOutSlowInEasing))
-        }
-        launch {
-            titleOffsetY.animateTo(0f, animationSpec = tween(500, easing = FastOutSlowInEasing))
+            delay(200)
+            emblemAlpha.animateTo(1f, animationSpec = tween(350, easing = FastOutSlowInEasing))
         }
         launch {
             delay(200)
-            subtitleAlpha.animateTo(1f, animationSpec = tween(500, easing = FastOutSlowInEasing))
+            emblemElevation.animateTo(24f, animationSpec = tween(500))
+            emblemScale.animateTo(
+                1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
         }
 
-        // App holding phase for user appreciation
-        delay(1300)
+        delay(600)
+        // Shimmer glint sweeps diagonally across the emblem
+        launch {
+            shimmerOffset.animateTo(450f, animationSpec = tween(750, easing = FastOutSlowInEasing))
+        }
+
+        // Phase 4: Brand Typography entrance + Calibration progress (800ms - 1500ms)
+        launch {
+            titleAlpha.animateTo(1f, animationSpec = tween(450, easing = FastOutSlowInEasing))
+        }
+        launch {
+            titleOffsetY.animateTo(0f, animationSpec = tween(450, easing = FastOutSlowInEasing))
+        }
+        launch {
+            delay(150)
+            badgeScale.animateTo(
+                1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessMedium
+                )
+            )
+        }
+        launch {
+            delay(250)
+            subtitleAlpha.animateTo(1f, animationSpec = tween(450, easing = FastOutSlowInEasing))
+        }
+        launch {
+            delay(300)
+            progressValue.animateTo(1f, animationSpec = tween(1200, easing = FastOutSlowInEasing))
+        }
+
+        // App holding phase for appreciation
+        delay(1400)
 
         // Phase 5: Smooth exit transition into main app
         screenFadeOut.animateTo(0f, animationSpec = tween(350, easing = FastOutSlowInEasing))
-        onAnimationFinished()
+        finish()
     }
 
     Box(
@@ -254,22 +334,59 @@ fun SplashScreen(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF07210E),
+                        Color(0xFF051D0B),
                         FarmGreenDark,
                         Color(0xFF1E5B28),
-                        Color(0xFF081C0D)
+                        Color(0xFF061A0A)
                     )
                 )
             )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = { onAnimationFinished() }
-            )
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { offset ->
+                        tapRippleCenter = offset
+                        // Trigger rapid exit on intentional tap
+                        finish()
+                    }
+                )
+            }
             .testTag("screen_splash"),
         contentAlignment = Alignment.Center
     ) {
-        // Top Bar with Skip Button
+        // Ambient Organic Auroral Gradients in Background
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+
+            // Upper Emerald Light Blob
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFF43A047).copy(alpha = 0.28f),
+                        Color.Transparent
+                    ),
+                    center = Offset(center.x + auroraDrift * 1.2f, size.height * 0.25f),
+                    radius = size.width * 0.7f
+                ),
+                radius = size.width * 0.7f,
+                center = Offset(center.x + auroraDrift * 1.2f, size.height * 0.25f)
+            )
+
+            // Lower Golden Nutrient Glow Blob
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color(0xFFFFD54F).copy(alpha = 0.22f),
+                        Color.Transparent
+                    ),
+                    center = Offset(center.x - auroraDrift, size.height * 0.72f),
+                    radius = size.width * 0.65f
+                ),
+                radius = size.width * 0.65f,
+                center = Offset(center.x - auroraDrift, size.height * 0.72f)
+            )
+        }
+
+        // Top Navigation with Skip Button
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -282,64 +399,82 @@ fun SplashScreen(
                 modifier = Modifier
                     .alpha(skipAlpha.value)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White.copy(alpha = 0.12f))
-                    .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(20.dp))
-                    .clickable { onAnimationFinished() }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .background(Color.White.copy(alpha = 0.14f))
+                    .border(1.dp, Color(0xFFFFD54F).copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = { finish() }
+                    )
+                    .padding(horizontal = 14.dp, vertical = 7.dp)
             ) {
                 Text(
                     text = "Skip",
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.85f),
-                    fontWeight = FontWeight.Medium
+                    color = Color.White.copy(alpha = 0.95f),
+                    fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(5.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.size(13.dp)
+                    contentDescription = "Skip splash",
+                    tint = Color(0xFFFFD54F),
+                    modifier = Modifier.size(14.dp)
                 )
             }
         }
 
-        // Background Floating Fertilizer & Soil Vitality Particles
+        // Bioluminescent Floating Nutrient Spores (16 particles)
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val particleList = listOf(
-                Pair(0.20f, 0.30f) to Color(0xFFFFD54F),
-                Pair(0.80f, 0.25f) to Color(0xFF81C784),
-                Pair(0.15f, 0.70f) to Color(0xFFA5D6A7),
-                Pair(0.85f, 0.65f) to Color(0xFFFFD54F),
-                Pair(0.28f, 0.82f) to Color(0xFFC8E6C9),
-                Pair(0.72f, 0.80f) to Color(0xFF81C784),
-                Pair(0.50f, 0.18f) to Color(0xFFFFE082),
-                Pair(0.50f, 0.88f) to Color(0xFFA5D6A7)
+            val particleSpecs = listOf(
+                Triple(0.18f, 0.24f, Color(0xFFFFD54F)),
+                Triple(0.82f, 0.20f, Color(0xFF81C784)),
+                Triple(0.12f, 0.68f, Color(0xFFA5D6A7)),
+                Triple(0.88f, 0.62f, Color(0xFFFFD54F)),
+                Triple(0.24f, 0.85f, Color(0xFFC8E6C9)),
+                Triple(0.76f, 0.82f, Color(0xFF81C784)),
+                Triple(0.50f, 0.14f, Color(0xFFFFE082)),
+                Triple(0.50f, 0.90f, Color(0xFFA5D6A7)),
+                Triple(0.35f, 0.40f, Color(0xFFFFD54F)),
+                Triple(0.65f, 0.42f, Color(0xFF81C784)),
+                Triple(0.08f, 0.48f, Color(0xFFA5D6A7)),
+                Triple(0.92f, 0.46f, Color(0xFFFFE082)),
+                Triple(0.30f, 0.70f, Color(0xFFC8E6C9)),
+                Triple(0.70f, 0.68f, Color(0xFF81C784)),
+                Triple(0.42f, 0.82f, Color(0xFFFFD54F)),
+                Triple(0.58f, 0.22f, Color(0xFFA5D6A7))
             )
 
-            particleList.forEachIndexed { index, (pos, color) ->
-                val (baseXRatio, baseYRatio) = pos
-                val floatY = (baseYRatio - (particlePhase * 0.12f * ((index % 3) + 1))) % 1.0f
+            particleSpecs.forEachIndexed { index, (xRatio, yRatio, color) ->
+                val floatY = (yRatio - (particlePhase * 0.14f * ((index % 4) + 1))) % 1.0f
                 val safeY = if (floatY < 0f) floatY + 1f else floatY
-                val x = size.width * baseXRatio + sin((particlePhase * 2 * PI + index).toFloat()) * 12f
+                val x = size.width * xRatio + sin((particlePhase * 2 * PI + index * 0.5f).toFloat()) * 16f
                 val y = size.height * safeY
-                val radius = (3.5f + (index % 3) * 1.5f)
-                val alpha = (0.25f + sin((particlePhase * PI + index).toFloat()) * 0.25f).coerceIn(0.1f, 0.7f)
+                val radius = (3f + (index % 3) * 1.5f)
+                val alpha = (0.3f + sin((particlePhase * PI + index).toFloat()) * 0.35f).coerceIn(0.15f, 0.85f)
 
+                // Particle glow aura
                 drawCircle(
-                    color = color.copy(alpha = alpha),
-                    radius = radius,
+                    color = color.copy(alpha = alpha * 0.35f),
+                    radius = radius * 2.2f,
+                    center = Offset(x, y)
+                )
+                // Particle bright core
+                drawCircle(
+                    color = Color.White.copy(alpha = alpha),
+                    radius = radius * 0.6f,
                     center = Offset(x, y)
                 )
             }
         }
 
-        // Central Composition: Logo Construction & Typography
+        // Center Composition: Emblem Construction & Typography
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(horizontal = 24.dp)
         ) {
-            // === LOGO-BASED ANIMATED BADGE CONTAINER ===
+            // === LOGO-BASED ANIMATED EMBLEM CONTAINER ===
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -348,6 +483,26 @@ fun SplashScreen(
                     .rotate(rosetteRotation.value)
                     .alpha(rosetteAlpha.value)
             ) {
+                // Expanding Shockwave Wave Rings
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    if (shockwaveAlpha.value > 0f) {
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val r = (size.minDimension / 2f) * shockwaveScale.value
+                        drawCircle(
+                            color = Color(0xFFFFD54F).copy(alpha = shockwaveAlpha.value * 0.7f),
+                            radius = r,
+                            center = center,
+                            style = Stroke(width = 3.5f)
+                        )
+                        drawCircle(
+                            color = Color(0xFF81C784).copy(alpha = shockwaveAlpha.value * 0.4f),
+                            radius = r * 0.85f,
+                            center = center,
+                            style = Stroke(width = 2f)
+                        )
+                    }
+                }
+
                 // 1. Ambient Pulsing Radial Aura
                 Box(
                     modifier = Modifier
@@ -357,18 +512,18 @@ fun SplashScreen(
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    Color(0xFFFFD54F).copy(alpha = 0.35f),
-                                    Color(0xFF4CAF50).copy(alpha = 0.22f),
+                                    Color(0xFFFFD54F).copy(alpha = 0.38f),
+                                    Color(0xFF4CAF50).copy(alpha = 0.24f),
                                     Color.Transparent
                                 )
                             )
                         )
                 )
 
-                // 2. Decorative Sunburst Rays
+                // 2. Dual Counter-Rotating Sunburst Rays
                 Canvas(
                     modifier = Modifier
-                        .size(220.dp)
+                        .size(224.dp)
                         .rotate(ambientSpin)
                 ) {
                     val rayCount = 16
@@ -377,15 +532,15 @@ fun SplashScreen(
                     for (i in 0 until rayCount) {
                         val angle = (i * 360f / rayCount) * (PI.toFloat() / 180f)
                         val start = Offset(
-                            center.x + (maxRadius * 0.82f) * cos(angle),
-                            center.y + (maxRadius * 0.82f) * sin(angle)
+                            center.x + (maxRadius * 0.84f) * cos(angle),
+                            center.y + (maxRadius * 0.84f) * sin(angle)
                         )
                         val end = Offset(
                             center.x + maxRadius * cos(angle),
                             center.y + maxRadius * sin(angle)
                         )
                         drawLine(
-                            color = Color(0xFFFFD54F).copy(alpha = 0.40f),
+                            color = Color(0xFFFFD54F).copy(alpha = 0.45f),
                             start = start,
                             end = end,
                             strokeWidth = 3f,
@@ -394,12 +549,12 @@ fun SplashScreen(
                     }
                 }
 
-                // 3. Custom Canvas: Scalloped Rosette + Dashed Stitched Ring + 3 Furrow Arcs + Leaf Sprout
+                // 3. Custom Canvas: 16-Lobed Rosette + Dashed Stitched Ring + 3 Furrow Arcs + Leaf Sprout
                 Canvas(
                     modifier = Modifier.size(210.dp)
                 ) {
                     val center = Offset(size.width / 2f, size.height / 2f)
-                    val baseRadius = size.minDimension / 2f - 8f
+                    val baseRadius = size.minDimension / 2f - 6f
 
                     // --- DRAW 16-LOBED SCALLOPED BADGE ---
                     val lobes = 16
@@ -407,7 +562,7 @@ fun SplashScreen(
                     val totalSteps = 240
                     for (step in 0..totalSteps) {
                         val theta = (step.toFloat() / totalSteps) * (2 * PI.toFloat())
-                        // Modulation for 16 smooth scallop petals
+                        // Smooth sinusoidal scalloped rim
                         val r = baseRadius * 0.90f + (baseRadius * 0.10f) * cos(lobes * theta)
                         val px = center.x + r * cos(theta)
                         val py = center.y + r * sin(theta)
@@ -419,7 +574,7 @@ fun SplashScreen(
                     }
                     scallopPath.close()
 
-                    // Fill Scalloped Rosette with rich organic green
+                    // Fill Rosette with lush agricultural gradient
                     drawPath(
                         path = scallopPath,
                         brush = Brush.radialGradient(
@@ -433,10 +588,10 @@ fun SplashScreen(
                         )
                     )
 
-                    // Scallop Golden Border Accent
+                    // Scallop Golden Contour Stroke
                     drawPath(
                         path = scallopPath,
-                        color = Color(0xFFFFD54F).copy(alpha = 0.75f),
+                        color = Color(0xFFFFD54F).copy(alpha = 0.80f),
                         style = Stroke(width = 2.5f)
                     )
 
@@ -444,14 +599,14 @@ fun SplashScreen(
                     val stitchRadius = baseRadius * 0.77f
                     if (stitchProgress.value > 0f) {
                         drawArc(
-                            color = Color(0xFFFAF7EE).copy(alpha = 0.90f),
+                            color = Color(0xFFFAF7EE).copy(alpha = 0.92f),
                             startAngle = -90f,
                             sweepAngle = 360f * stitchProgress.value,
                             useCenter = false,
                             topLeft = Offset(center.x - stitchRadius, center.y - stitchRadius),
                             size = Size(stitchRadius * 2f, stitchRadius * 2f),
                             style = Stroke(
-                                width = 2.2f,
+                                width = 2.4f,
                                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f),
                                 cap = StrokeCap.Round
                             )
@@ -464,42 +619,45 @@ fun SplashScreen(
                     // Arc 1 (Inner furrow wave)
                     if (furrowArc1.value > 0f) {
                         val r1 = baseRadius * 0.44f
+                        val arcAlpha = (furrowArc1.value * radarPulse).coerceIn(0.4f, 1f)
                         drawArc(
-                            color = Color(0xFF81C784).copy(alpha = 0.85f * furrowArc1.value),
+                            color = Color(0xFF81C784).copy(alpha = arcAlpha),
                             startAngle = -35f,
                             sweepAngle = 70f * furrowArc1.value,
                             useCenter = false,
                             topLeft = Offset(furrowCenter.x - r1, furrowCenter.y - r1),
                             size = Size(r1 * 2f, r1 * 2f),
-                            style = Stroke(width = 3.8f, cap = StrokeCap.Round)
+                            style = Stroke(width = 4.0f, cap = StrokeCap.Round)
                         )
                     }
 
                     // Arc 2 (Middle furrow wave)
                     if (furrowArc2.value > 0f) {
                         val r2 = baseRadius * 0.55f
+                        val arcAlpha = (furrowArc2.value * radarPulse).coerceIn(0.4f, 1f)
                         drawArc(
-                            color = Color(0xFFA5D6A7).copy(alpha = 0.90f * furrowArc2.value),
+                            color = Color(0xFFA5D6A7).copy(alpha = arcAlpha),
                             startAngle = -42f,
                             sweepAngle = 82f * furrowArc2.value,
                             useCenter = false,
                             topLeft = Offset(furrowCenter.x - r2, furrowCenter.y - r2),
                             size = Size(r2 * 2f, r2 * 2f),
-                            style = Stroke(width = 4.2f, cap = StrokeCap.Round)
+                            style = Stroke(width = 4.4f, cap = StrokeCap.Round)
                         )
                     }
 
                     // Arc 3 (Outer furrow wave)
                     if (furrowArc3.value > 0f) {
                         val r3 = baseRadius * 0.67f
+                        val arcAlpha = (furrowArc3.value * radarPulse).coerceIn(0.5f, 1f)
                         drawArc(
-                            color = Color(0xFFFFD54F).copy(alpha = 0.95f * furrowArc3.value),
+                            color = Color(0xFFFFD54F).copy(alpha = arcAlpha),
                             startAngle = -48f,
                             sweepAngle = 92f * furrowArc3.value,
                             useCenter = false,
                             topLeft = Offset(furrowCenter.x - r3, furrowCenter.y - r3),
                             size = Size(r3 * 2f, r3 * 2f),
-                            style = Stroke(width = 4.6f, cap = StrokeCap.Round)
+                            style = Stroke(width = 4.8f, cap = StrokeCap.Round)
                         )
                     }
 
@@ -510,12 +668,12 @@ fun SplashScreen(
                         val leafPath = Path().apply {
                             moveTo(leafOrigin.x, leafOrigin.y)
                             cubicTo(
-                                leafOrigin.x - 22f * scale, leafOrigin.y - 10f * scale,
-                                leafOrigin.x - 28f * scale, leafOrigin.y - 36f * scale,
-                                leafOrigin.x - 12f * scale, leafOrigin.y - 50f * scale
+                                leafOrigin.x - 24f * scale, leafOrigin.y - 10f * scale,
+                                leafOrigin.x - 30f * scale, leafOrigin.y - 38f * scale,
+                                leafOrigin.x - 14f * scale, leafOrigin.y - 52f * scale
                             )
                             cubicTo(
-                                leafOrigin.x + 8f * scale, leafOrigin.y - 34f * scale,
+                                leafOrigin.x + 8f * scale, leafOrigin.y - 36f * scale,
                                 leafOrigin.x + 2f * scale, leafOrigin.y - 12f * scale,
                                 leafOrigin.x, leafOrigin.y
                             )
@@ -526,27 +684,27 @@ fun SplashScreen(
                             brush = Brush.linearGradient(
                                 colors = listOf(Color(0xFF81C784), Color(0xFF2E7D32)),
                                 start = Offset(leafOrigin.x, leafOrigin.y),
-                                end = Offset(leafOrigin.x - 12f * scale, leafOrigin.y - 50f * scale)
+                                end = Offset(leafOrigin.x - 14f * scale, leafOrigin.y - 52f * scale)
                             )
                         )
                         // Leaf central vein
                         drawLine(
-                            color = Color.White.copy(alpha = 0.9f),
+                            color = Color.White.copy(alpha = 0.92f),
                             start = leafOrigin,
-                            end = Offset(leafOrigin.x - 12f * scale, leafOrigin.y - 48f * scale),
-                            strokeWidth = 1.8f,
+                            end = Offset(leafOrigin.x - 14f * scale, leafOrigin.y - 50f * scale),
+                            strokeWidth = 2.0f,
                             cap = StrokeCap.Round
                         )
                     }
                 }
 
-                // 4. THE AUTHENTIC NUTRIGUIDE EMBLEM (Carabao, Leaf, Furrows, Scallop Seal)
+                // 4. THE AUTHENTIC NUTRIGUIDE EMBLEM (Carabao Medallion Disc)
                 Box(
                     modifier = Modifier
-                        .size(172.dp)
+                        .size(174.dp)
                         .scale(emblemScale.value)
                         .alpha(emblemAlpha.value)
-                        .shadow(18.dp, CircleShape)
+                        .shadow(emblemElevation.value.dp, CircleShape)
                         .clip(CircleShape)
                         .background(Color(0xFFFAF7EE))
                         .border(3.dp, Color(0xFF2E7D32), CircleShape)
@@ -557,12 +715,12 @@ fun SplashScreen(
                         painter = painterResource(id = R.drawable.img_nutriguide_logo),
                         contentDescription = "NutriGuide Official Logo",
                         modifier = Modifier
-                            .size(166.dp)
+                            .size(168.dp)
                             .clip(CircleShape),
                         contentScale = ContentScale.Fit
                     )
 
-                    // 5. Diagonal Golden Shimmer / Gleam Sweep
+                    // 5. Specular Shimmer / Lens Flare Sweep
                     Canvas(
                         modifier = Modifier.fillMaxSize()
                     ) {
@@ -571,25 +729,25 @@ fun SplashScreen(
                             colors = listOf(
                                 Color.Transparent,
                                 Color.White.copy(alpha = 0.45f),
-                                Color(0xFFFFD54F).copy(alpha = 0.65f),
+                                Color(0xFFFFD54F).copy(alpha = 0.70f),
                                 Color.White.copy(alpha = 0.45f),
                                 Color.Transparent
                             ),
-                            start = Offset(shimmerX - 60f, 0f),
-                            end = Offset(shimmerX + 60f, size.height)
+                            start = Offset(shimmerX - 70f, 0f),
+                            end = Offset(shimmerX + 70f, size.height)
                         )
-                        rotate(28f, pivot = center) {
+                        rotate(30f, pivot = center) {
                             drawRect(
                                 brush = shimmerBrush,
-                                topLeft = Offset(shimmerX - 80f, -size.height),
-                                size = Size(160f, size.height * 3f)
+                                topLeft = Offset(shimmerX - 90f, -size.height),
+                                size = Size(180f, size.height * 3f)
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             // === BRAND TYPOGRAPHY & IDENTITY ===
             Column(
@@ -605,22 +763,28 @@ fun SplashScreen(
                 ) {
                     Text(
                         text = "NutriGuide",
-                        fontSize = 38.sp,
+                        fontSize = 40.sp,
                         fontWeight = FontWeight.Black,
                         color = Color.White,
-                        letterSpacing = 1.5.sp
+                        letterSpacing = 1.6.sp
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFFFFD54F))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .scale(badgeScale.value)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(Color(0xFFFFD54F), Color(0xFFFFB300))
+                                )
+                            )
+                            .shadow(4.dp, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = "PH",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
                             color = Color(0xFF1B5E20)
                         )
                     }
@@ -632,7 +796,7 @@ fun SplashScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(24.dp))
-                        .background(Color.White.copy(alpha = 0.15f))
+                        .background(Color.White.copy(alpha = 0.16f))
                         .border(1.2.dp, Color(0xFFFFD54F).copy(alpha = 0.60f), RoundedCornerShape(24.dp))
                         .padding(horizontal = 16.dp, vertical = 6.dp)
                 ) {
@@ -643,7 +807,7 @@ fun SplashScreen(
                             imageVector = Icons.Default.Agriculture,
                             contentDescription = null,
                             tint = Color(0xFFFFD54F),
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
@@ -656,43 +820,71 @@ fun SplashScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = "DA-PhilRice & RCEF Fertilizer Management",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.88f)
+                    color = Color.White.copy(alpha = 0.90f)
                 )
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
-            // Animated Status Pulse
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
+            // Animated Agricultural Calibration Progress Bar
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .alpha(subtitleAlpha.value)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.28f))
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp)
             ) {
-                // Soil / Seed vitality glowing indicator
+                // Progress track
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF81C784))
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Calibrating Soil Nutrients & Farm Maps...",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Color.White.copy(alpha = 0.90f)
-                )
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color.White.copy(alpha = 0.18f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progressValue.value)
+                            .height(5.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color(0xFF81C784),
+                                        Color(0xFFFFD54F),
+                                        Color(0xFFA5D6A7)
+                                    )
+                                )
+                            )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Calibration Status Text
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFFD54F))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (progressValue.value < 0.6f) "Calibrating Soil Nutrients..." else "Ready for Precision Farming",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color.White.copy(alpha = 0.88f)
+                    )
+                }
             }
         }
     }

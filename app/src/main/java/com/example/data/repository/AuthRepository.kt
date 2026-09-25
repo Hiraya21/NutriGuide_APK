@@ -78,7 +78,7 @@ class AuthRepository(context: Context) {
         agency = "DA-RSBSA Registry",
         province = "Nueva Ecija",
         municipality = "Science City of Muñoz",
-        farmAreaHectares = 2.4,
+        farmAreaHectares = 0.0,
         primaryCrop = "Lowland Irrigated Rice (NSIC Rc 222)",
         phoneNumber = "0917-123-4567",
         dateRegistered = "Jul 2026"
@@ -113,7 +113,8 @@ class AuthRepository(context: Context) {
         val agency = prefs.getString("user_agency", "DA-PhilRice") ?: "DA-PhilRice"
         val prov = prefs.getString("user_prov", "Nueva Ecija") ?: "Nueva Ecija"
         val mun = prefs.getString("user_mun", "Science City of Muñoz") ?: "Science City of Muñoz"
-        val area = prefs.getFloat("user_area", 2.4f).toDouble()
+        val rawArea = prefs.getFloat("user_area", 0.0f).toDouble()
+        val area = if (rawArea == 2.4) 0.0 else rawArea
         val crop = prefs.getString("user_crop", "Lowland Irrigated Rice (NSIC Rc 222)") ?: "Lowland Irrigated Rice (NSIC Rc 222)"
         val phone = prefs.getString("user_phone", "0917-123-4567") ?: "0917-123-4567"
         val dateReg = prefs.getString("user_date_reg", "Aug 2026") ?: "Aug 2026"
@@ -220,7 +221,7 @@ class AuthRepository(context: Context) {
             rsbsaNumber = if (trimmed.contains("-")) trimmed else "03-49-12-00421",
             province = "Nueva Ecija",
             municipality = "Science City of Muñoz",
-            farmAreaHectares = 2.4,
+            farmAreaHectares = 0.0,
             primaryCrop = "Lowland Irrigated Palay (NSIC Rc 222)",
             phoneNumber = if (trimmed.startsWith("09")) trimmed else "0917-123-4567"
         )
@@ -477,7 +478,7 @@ class AuthRepository(context: Context) {
                 rsbsaId = "03-49-12-00421",
                 barangay = "Brgy. Maligaya",
                 municipality = "Science City of Muñoz",
-                farmSizeHa = 2.4,
+                farmSizeHa = 0.0,
                 cropVariety = "NSIC Rc 222 (Tubigan 21)",
                 soilType = "Maligaya Clay Loam (pH 6.2)",
                 lastActiveDate = "Today, 10:45 AM",

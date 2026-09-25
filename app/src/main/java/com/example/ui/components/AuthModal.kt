@@ -534,7 +534,7 @@ private fun FarmerLoginTab(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("👨‍🌾 Juan Dela Cruz", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = FarmGreenDark)
-                    Text("2.4 Ha • Rice", fontSize = 9.sp, color = Color(0xFF616161))
+                    Text("Rice", fontSize = 9.sp, color = Color(0xFF616161))
                 }
             }
 
@@ -567,7 +567,7 @@ private fun FarmerRegisterTab(
     var rsbsaNumber by remember { mutableStateOf("") }
     var province by remember { mutableStateOf("Nueva Ecija") }
     var municipality by remember { mutableStateOf("Science City of Muñoz") }
-    var farmAreaText by remember { mutableStateOf("1.5") }
+    var farmAreaText by remember { mutableStateOf("") }
     var cropVariety by remember { mutableStateOf("NSIC Rc 222 (Tubigan 21)") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -653,6 +653,7 @@ private fun FarmerRegisterTab(
                 value = farmAreaText,
                 onValueChange = { farmAreaText = it },
                 label = { Text("Laki ng Bukid (Ha)", fontSize = 11.sp, color = Color(0xFF5D4037), fontWeight = FontWeight.Medium) },
+                placeholder = { Text("Enter Farm Area", fontSize = 11.sp, color = Color(0xFF8D6E63).copy(alpha = 0.7f)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 textStyle = androidx.compose.ui.text.TextStyle(color = FarmTextDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),

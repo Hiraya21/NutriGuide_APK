@@ -11,7 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-@Database(entities = [FarmRecord::class], version = 2, exportSchema = false)
+@Database(entities = [FarmRecord::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun farmDao(): FarmDao
 
@@ -27,30 +27,6 @@ abstract class AppDatabase : RoomDatabase() {
                     "rice_farm_assistant_db"
                 )
                 .fallbackToDestructiveMigration()
-                .addCallback(object : RoomDatabase.Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        // Seed initial farm record matching screenshot demo
-                        INSTANCE?.let { database ->
-                            CoroutineScope(Dispatchers.IO).launch {
-                                database.farmDao().insertFarm(
-                                    FarmRecord(
-                                        name = "Rice Farm",
-                                        dateFormatted = "Jul 23, 2026",
-                                        timestamp = 1784814477000L,
-                                        areaHectares = 0.0,
-                                        perimeterMeters = 0.0,
-                                        cropType = "Rice",
-                                        pointsJson = "[]",
-                                        walkedMeters = 0.0,
-                                        gpsAccuracy = "Fair",
-                                        boundaryPointsCount = 0
-                                    )
-                                )
-                            }
-                        }
-                    }
-                })
                 .build()
                 INSTANCE = instance
                 instance

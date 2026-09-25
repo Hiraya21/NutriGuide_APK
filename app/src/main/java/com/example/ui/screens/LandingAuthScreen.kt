@@ -505,6 +505,37 @@ fun LandingAuthScreen(
                     onPrimaryClick = { activeAuthMode = AuthMode.ADMIN_LOGIN }
                 )
 
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Guest / Direct Access Button
+                OutlinedButton(
+                    onClick = onContinueAsGuest,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("btn_landing_guest"),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = FarmBrownPrimary)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = when (currentLanguage) {
+                            AppLanguage.ENGLISH -> "Continue to App (Offline Mode)"
+                            AppLanguage.TAGALOG -> "Magpatuloy sa App nang Walang Login"
+                            AppLanguage.TAGLISH -> "Continue to App as Guest"
+                            AppLanguage.ILOCANO -> "Agtuloy iti App"
+                            AppLanguage.CEBUANO -> "Padayon sa App"
+                        },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.5.sp
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(28.dp))
             }
         }
@@ -1080,7 +1111,7 @@ private fun FarmerLoginForm(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("🌾 Juan Dela Cruz", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = FarmBrownDark)
-                    Text("Nueva Ecija • 2.4 Ha", fontSize = 9.sp, color = Color(0xFF616161))
+                    Text("Nueva Ecija • Rice", fontSize = 9.sp, color = Color(0xFF616161))
                 }
             }
 
@@ -1161,7 +1192,7 @@ private fun FarmerRegisterForm(
     var rsbsaNumber by remember { mutableStateOf("") }
     var province by remember { mutableStateOf("Nueva Ecija") }
     var municipality by remember { mutableStateOf("Science City of Muñoz") }
-    var farmAreaText by remember { mutableStateOf("2.0") }
+    var farmAreaText by remember { mutableStateOf("") }
     var cropVariety by remember { mutableStateOf("NSIC Rc 222 (Tubigan 21)") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -1310,6 +1341,13 @@ private fun FarmerRegisterForm(
                         fontSize = 12.sp,
                         color = Color(0xFF5D4037),
                         fontWeight = FontWeight.Medium
+                    )
+                },
+                placeholder = {
+                    Text(
+                        text = "Enter Farm Area",
+                        fontSize = 12.sp,
+                        color = Color(0xFF8D6E63).copy(alpha = 0.7f)
                     )
                 },
                 singleLine = true,

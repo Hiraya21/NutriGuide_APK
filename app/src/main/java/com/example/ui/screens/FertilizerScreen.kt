@@ -393,7 +393,15 @@ fun FertilizerScreen(
                 OutlinedTextField(
                     value = farmArea,
                     onValueChange = onAreaChange,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    placeholder = {
+                        Text(
+                            text = "Enter Farm Area",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF9E9E9E)
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     textStyle = androidx.compose.ui.text.TextStyle(
                         fontSize = 22.sp,
@@ -786,8 +794,19 @@ fun FertilizerScreen(
                             color = FarmTextDark
                         )
                         Spacer(modifier = Modifier.height(2.dp))
+                        val summarySubtext = if (farmArea.isBlank()) {
+                            when (currentLanguage) {
+                                AppLanguage.ENGLISH -> "Enter farm lot area above to compute total fertilizer bags"
+                                AppLanguage.TAGALOG -> "Maglagay ng sukat ng lupa sa itaas para sa kabuuang kailangan"
+                                AppLanguage.TAGLISH -> "Enter farm area above to calculate total field requirement"
+                                AppLanguage.ILOCANO -> "Ikabil ti rukod ti talon iti ngato para iti amin a kasapulan"
+                                AppLanguage.CEBUANO -> "Ibutang ang sukad sa yuta sa ibabaw para sa kinatibuk-ang gikinahanglan"
+                            }
+                        } else {
+                            "Kabuuang kailangan sa bukid: ${String.format("%.1f", totalFieldNpk)} kg sa ${String.format("%.2f", areaNum)} ha"
+                        }
                         Text(
-                            text = "Kabuuang kailangan sa bukid: ${String.format("%.1f", totalFieldNpk)} kg sa ${String.format("%.2f", areaNum)} ha",
+                            text = summarySubtext,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = FarmTextSecondary

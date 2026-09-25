@@ -954,7 +954,7 @@ fun HistoryScreen(
         var editMunicipality by remember { mutableStateOf(currentUser.municipality) }
         var editProvince by remember { mutableStateOf(currentUser.province) }
         var editCrop by remember { mutableStateOf(currentUser.primaryCrop) }
-        var editAreaText by remember { mutableStateOf(String.format(Locale.US, "%.2f", currentUser.farmAreaHectares)) }
+        var editAreaText by remember { mutableStateOf(if (currentUser.farmAreaHectares > 0.0 && currentUser.farmAreaHectares != 2.4) String.format(Locale.US, "%.2f", currentUser.farmAreaHectares) else "") }
         var editRsbsa by remember { mutableStateOf(currentUser.rsbsaNumber) }
         var editAgency by remember { mutableStateOf(currentUser.agency) }
         var inputError by remember { mutableStateOf<String?>(null) }
@@ -1101,6 +1101,7 @@ fun HistoryScreen(
                         value = editAreaText,
                         onValueChange = { editAreaText = it; inputError = null },
                         label = { Text("Farm Area (Hectares) / Sukat ng Bukid", fontSize = 12.sp) },
+                        placeholder = { Text("Enter Farm Area", color = Color.Gray, fontSize = 12.sp) },
                         leadingIcon = {
                             Icon(Icons.Default.Agriculture, contentDescription = null, tint = FarmGreenPrimary)
                         },

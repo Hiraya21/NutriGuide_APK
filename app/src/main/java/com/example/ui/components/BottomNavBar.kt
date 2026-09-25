@@ -1,11 +1,18 @@
 package com.example.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
@@ -24,7 +31,10 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -110,16 +120,38 @@ fun BottomNavBar(
                     }
                 }
 
+                val iconScale by animateFloatAsState(
+                    targetValue = if (isSelected) 1.20f else 1.0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium
+                    ),
+                    label = "tab_icon_scale_$index"
+                )
+                val iconTint by animateColorAsState(
+                    targetValue = if (isSelected) FarmGreenHeader else FarmTextSecondary,
+                    animationSpec = tween(220),
+                    label = "tab_icon_tint_$index"
+                )
+
                 NavigationBarItem(
                     selected = isSelected,
                     onClick = { onTabSelected(index) },
                     modifier = Modifier.testTag(item.testTag),
                     icon = {
-                        Icon(
-                            imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                            contentDescription = tabTitle,
-                            tint = if (isSelected) FarmGreenHeader else FarmTextSecondary
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                contentDescription = tabTitle,
+                                tint = iconTint,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .scale(iconScale)
+                            )
+                        }
                     },
                     label = {
                         Text(

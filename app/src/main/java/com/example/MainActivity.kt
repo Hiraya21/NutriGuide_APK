@@ -5,6 +5,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -85,14 +97,6 @@ fun RiceFarmAssistantApp(
     val isHighContrastMode by viewModel.isHighContrastMode.collectAsStateWithLifecycle()
     val displayReadabilityMode by viewModel.displayReadabilityMode.collectAsStateWithLifecycle()
     var isSoilAnalysisOpen by remember { mutableStateOf(false) }
-    var isSplashVisible by remember { mutableStateOf(true) }
-
-    if (isSplashVisible) {
-        SplashScreen(
-            onAnimationFinished = { isSplashVisible = false }
-        )
-        return
-    }
 
     // Measurement states
     val cropType by viewModel.selectedCrop.collectAsStateWithLifecycle()
@@ -194,246 +198,300 @@ fun RiceFarmAssistantApp(
         viewModel.selectTab(0)
     }
 
-    if (isLandingScreenOpen) {
-        LandingAuthScreen(
-            currentLanguage = currentLanguage,
-            onLanguageSelected = { viewModel.setLanguage(it) },
-            onFarmerLogin = { identifier, passcode -> viewModel.loginFarmer(identifier, passcode) },
-            onFarmerRegister = { name, phone, rsbsa, prov, mun, area, crop ->
-                viewModel.registerFarmer(name, phone, rsbsa, prov, mun, area, crop)
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = when {
+                isLandingScreenOpen -> "landing"
+                isAdminDashboardOpen -> "admin"
+                else -> "main"
             },
-            onAdminLogin = { identifier, passcode -> viewModel.loginAdminPersonnel(identifier, passcode) },
-            onContinueAsGuest = { viewModel.closeLandingScreen() }
-        )
-    } else if (isAdminDashboardOpen) {
-        AdminDashboardScreen(
-            currentUser = currentUser,
-            farmerRegistry = farmerRegistry,
-            auditLogs = auditLogs,
-            currentLanguage = currentLanguage,
-            farmRecords = allFarms,
-            onBackToFarmerView = { viewModel.closeAdminDashboard() },
-            onLogout = { viewModel.promptLogout() },
-            onUpdateFarmerStatus = { id, status -> viewModel.updateFarmerStatus(id, status) },
-            onApproveFarmer = { id -> viewModel.approveFarmer(id) },
-            onDeleteFarmer = { id -> viewModel.deleteFarmer(id) },
-            onEditFarmer = { farmer -> viewModel.editFarmer(farmer) },
-            onAddFarmer = { farmer -> viewModel.addFarmer(farmer) },
-            onResetFarmerRegistry = { viewModel.resetFarmerRegistry() },
-            onDeleteFarmRecord = { farm -> viewModel.adminDeleteFarmRecord(farm) },
-            onUpdateFarmRecord = { farm -> viewModel.adminUpdateFarmRecord(farm) },
-            onInsertFarmRecord = { farm -> viewModel.adminInsertFarmRecord(farm) },
-            onDeleteAllFarms = { viewModel.adminDeleteAllFarms() },
-            onSeedSampleFarms = { viewModel.adminSeedSampleFarms() },
-            onDeleteAuditLog = { logId -> viewModel.deleteAuditLog(logId) },
-            onClearAuditLogs = { viewModel.clearAllAuditLogs() }
-        )
-    } else {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            topBar = {
-                TopNavBar(
-                    currentTab = currentTab,
-                    isSoilAnalysisOpen = isSoilAnalysisOpen,
-                    isGuideDetailOpen = selectedGuide != null,
-                    currentLanguage = currentLanguage,
-                    onLanguageSelected = { viewModel.setLanguage(it) },
-                    currentUser = currentUser,
-                    onOpenAuthModal = { viewModel.openAuthModal() },
-                    onOpenAdminDashboard = { viewModel.openAdminDashboard() },
-                    onLogout = { viewModel.promptLogout() },
-                    isHighContrastMode = isHighContrastMode,
-                    onToggleHighContrastMode = { viewModel.toggleDisplayReadabilityMode() },
-                    isOffline = isOfflineMode,
-                    onOfflineClick = { /* Handled via Banner and dialog */ }
-                )
+            transitionSpec = {
+                (fadeIn(animationSpec = tween(280)) + slideInVertically(animationSpec = tween(280)) { it / 10 })
+                    .togetherWith(fadeOut(animationSpec = tween(220)) + slideOutVertically(animationSpec = tween(220)) { -it / 10 })
             },
-            bottomBar = {
-                BottomNavBar(
-                    selectedTab = currentTab,
-                    currentLanguage = currentLanguage,
-                    onTabSelected = { tab ->
-                        isSoilAnalysisOpen = false
-                        viewModel.closeGuide()
-                        viewModel.selectTab(tab)
-                    }
-                )
-            }
-        ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                // Visual Offline & Cache Status Banner
-                OfflineStatusBanner(
-                    isOffline = isOfflineMode,
-                    isCachedContent = isAccessingCachedContent,
-                    currentLanguage = currentLanguage,
-                    lastSyncTime = weatherData.lastSyncTime,
-                    onRetrySync = { viewModel.retryLiveSync() },
-                    isForcedOffline = isForcedOffline,
-                    onToggleForcedOffline = { viewModel.toggleForcedOffline() }
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
-                    if (isSoilAnalysisOpen) {
-                        SoilAnalysisScreen(
-                            crop = soilCrop,
-                            soilType = soilType,
-                            nitrogen = nitrogenLevel,
-                            phosphorus = phosphorusLevel,
-                            potassium = potassiumLevel,
-                            organicMatter = organicMatter,
-                            recommendation = soilRecommendation,
-                            activeReport = activeSoilReport,
-                            savedReports = savedSoilReports,
-                            isGeminiAnalyzing = isGeminiAnalyzing,
-                            geminiError = geminiError,
-                            onCropChange = { viewModel.setSoilCrop(it) },
-                            onSoilTypeChange = { viewModel.setSoilType(it) },
-                            onNitrogenChange = { viewModel.setNitrogenLevel(it) },
-                            onPhosphorusChange = { viewModel.setPhosphorusLevel(it) },
-                            onPotassiumChange = { viewModel.setPotassiumLevel(it) },
-                            onOrganicMatterChange = { viewModel.setOrganicMatter(it) },
-                            onGenerate = { viewModel.generateSoilRecommendation() },
-                            onGenerateCustom = { c, t, n, p, k, om, ph, moisture ->
-                                viewModel.generateSoilRecommendationWithCustomValues(c, t, n, p, k, om, ph, moisture)
-                            },
-                            onAnalyzeWithGemini = { bitmap, crop, onDone ->
-                                viewModel.analyzeSoilWithGemini(bitmap, crop, onDone)
-                            },
-                            onDismissGeminiError = { viewModel.dismissGeminiError() },
-                            onSaveReport = { viewModel.saveActiveSoilReport() },
-                            onDeleteReport = { viewModel.deleteSoilReport(it) },
-                            onSelectSavedReport = { viewModel.selectSavedSoilReport(it) },
-                            onBack = { isSoilAnalysisOpen = false },
-                            currentLanguage = currentLanguage,
-                            onLanguageSelected = { viewModel.setLanguage(it) }
-                        )
-                    } else if (selectedGuide != null) {
-                        GuideDetailScreen(
-                            article = selectedGuide!!,
-                            onBack = { viewModel.closeGuide() },
-                            currentLanguage = currentLanguage,
-                            onLanguageSelected = { viewModel.setLanguage(it) }
-                        )
-                    } else {
-                        when (currentTab) {
-                            0 -> HomeScreen(
+            label = "root_screen_transition"
+        ) { screenType ->
+            when (screenType) {
+                "landing" -> {
+                    LandingAuthScreen(
+                        currentLanguage = currentLanguage,
+                        onLanguageSelected = { viewModel.setLanguage(it) },
+                        onFarmerLogin = { identifier, passcode -> viewModel.loginFarmer(identifier, passcode) },
+                        onFarmerRegister = { name, phone, rsbsa, prov, mun, area, crop ->
+                            viewModel.registerFarmer(name, phone, rsbsa, prov, mun, area, crop)
+                        },
+                        onAdminLogin = { identifier, passcode -> viewModel.loginAdminPersonnel(identifier, passcode) },
+                        onContinueAsGuest = { viewModel.closeLandingScreen() }
+                    )
+                }
+                "admin" -> {
+                    AdminDashboardScreen(
+                        currentUser = currentUser,
+                        farmerRegistry = farmerRegistry,
+                        auditLogs = auditLogs,
+                        currentLanguage = currentLanguage,
+                        farmRecords = allFarms,
+                        onBackToFarmerView = { viewModel.closeAdminDashboard() },
+                        onLogout = { viewModel.promptLogout() },
+                        onUpdateFarmerStatus = { id, status -> viewModel.updateFarmerStatus(id, status) },
+                        onApproveFarmer = { id -> viewModel.approveFarmer(id) },
+                        onDeleteFarmer = { id -> viewModel.deleteFarmer(id) },
+                        onEditFarmer = { farmer -> viewModel.editFarmer(farmer) },
+                        onAddFarmer = { farmer -> viewModel.addFarmer(farmer) },
+                        onResetFarmerRegistry = { viewModel.resetFarmerRegistry() },
+                        onDeleteFarmRecord = { farm -> viewModel.adminDeleteFarmRecord(farm) },
+                        onUpdateFarmRecord = { farm -> viewModel.adminUpdateFarmRecord(farm) },
+                        onInsertFarmRecord = { farm -> viewModel.adminInsertFarmRecord(farm) },
+                        onDeleteAllFarms = { viewModel.adminDeleteAllFarms() },
+                        onSeedSampleFarms = { viewModel.adminSeedSampleFarms() },
+                        onDeleteAuditLog = { logId -> viewModel.deleteAuditLog(logId) },
+                        onClearAuditLogs = { viewModel.clearAllAuditLogs() }
+                    )
+                }
+                else -> {
+                    Scaffold(
+                        modifier = Modifier.fillMaxSize(),
+                        snackbarHost = { SnackbarHost(snackbarHostState) },
+                        topBar = {
+                            TopNavBar(
+                                currentTab = currentTab,
+                                isSoilAnalysisOpen = isSoilAnalysisOpen,
+                                isGuideDetailOpen = selectedGuide != null,
                                 currentLanguage = currentLanguage,
-                                weatherData = weatherData,
-                                agriculturalRegions = agriculturalRegions,
-                                selectedRegion = selectedRegion,
-                                selectedWeatherScenario = selectedWeatherScenario,
-                                displayReadabilityMode = displayReadabilityMode,
-                                isOffline = isOfflineMode,
-                                isCachedContent = isAccessingCachedContent,
-                                isForcedOffline = isForcedOffline,
+                                onLanguageSelected = { viewModel.setLanguage(it) },
                                 currentUser = currentUser,
                                 onOpenAuthModal = { viewModel.openAuthModal() },
+                                onOpenAdminDashboard = { viewModel.openAdminDashboard() },
                                 onLogout = { viewModel.promptLogout() },
-                                onOpenLanding = { viewModel.openLandingScreen() },
-                                onToggleForcedOffline = { viewModel.toggleForcedOffline() },
-                                onReadabilityModeChanged = { mode -> viewModel.setDisplayReadabilityMode(mode) },
-                                onLanguageSelected = { viewModel.setLanguage(it) },
-                                onRegionSelected = { reg -> viewModel.selectWeatherRegion(reg) },
-                                onScenarioSelected = { scenario -> viewModel.setWeatherScenario(scenario) },
-                                onRefreshWeather = { viewModel.refreshWeatherData() },
-                                onNavigateToTab = { tab -> viewModel.selectTab(tab) },
-                                onOpenSoilAnalysis = { isSoilAnalysisOpen = true },
-                                onOpenDeleteAccount = { viewModel.openDeleteAccountModal() },
-                                onLocationPermissionGranted = { viewModel.onLocationPermissionGranted() }
+                                isHighContrastMode = isHighContrastMode,
+                                onToggleHighContrastMode = { viewModel.toggleDisplayReadabilityMode() },
+                                isOffline = isOfflineMode,
+                                onOfflineClick = { /* Handled via Banner and dialog */ }
                             )
-                        1 -> MeasurementScreen(
-                            cropType = cropType,
-                            isTracking = isTracking,
-                            isPaused = isPaused,
-                            boundaryPoints = boundaryPoints,
-                            walkingMeters = walkingMeters,
-                            estimatedHectares = estimatedHectares,
-                            gpsAccuracy = gpsAccuracy,
-                            currentLocation = currentLocation,
-                            currentLanguage = currentLanguage,
-                            onLanguageSelected = { viewModel.setLanguage(it) },
-                            restoredNotice = restoredSessionNotice,
-                            onDismissRestoredNotice = { viewModel.dismissRestoredNotice() },
-                            onLocationPermissionGranted = { viewModel.onLocationPermissionGranted() },
-                            onCropChange = { viewModel.setCrop(it) },
-                            onStartTracking = { viewModel.startTracking() },
-                            onPauseTracking = { viewModel.pauseTracking() },
-                            onMarkPoint = { viewModel.markPoint() },
-                            onUndoPoint = { viewModel.undoLastPoint() },
-                            onClearPoints = { viewModel.clearAllPoints() },
-                            onDeletePointAt = { index -> viewModel.deletePointAt(index) },
-                            onAddPointAt = { lat, lng -> viewModel.addManualPointOnMap(lat, lng) },
-                            onSaveFarm = { farmName -> viewModel.saveCompletedFarm(farmName) }
-                        )
-                        2 -> FertilizerScreen(
-                            farmArea = fertilizerFarmArea,
-                            targetN = targetN,
-                            targetP = targetP,
-                            targetK = targetK,
-                            fertilizerList = fertilizerList,
-                            calculationResult = calculationResult,
-                            selectedCrop = cropType,
-                            currentLanguage = currentLanguage,
-                            weatherData = weatherData,
-                            agriculturalRegions = agriculturalRegions,
-                            selectedRegion = selectedRegion,
-                            selectedWeatherScenario = selectedWeatherScenario,
-                            onLanguageSelected = { viewModel.setLanguage(it) },
-                            onRegionSelected = { reg -> viewModel.selectWeatherRegion(reg) },
-                            onScenarioSelected = { scenario -> viewModel.setWeatherScenario(scenario) },
-                            onRefreshWeather = { viewModel.refreshWeatherData() },
-                            onAreaChange = { viewModel.setFertilizerFarmArea(it) },
-                            onTargetNChange = { viewModel.setTargetN(it) },
-                            onTargetPChange = { viewModel.setTargetP(it) },
-                            onTargetKChange = { viewModel.setTargetK(it) },
-                            onToggleSelected = { id -> viewModel.toggleFertilizerSelected(id) },
-                            onToggleAvailability = { id -> viewModel.toggleFertilizerAvailability(id) },
-                            onUpdatePrice = { id, price -> viewModel.updateFertilizerPrice(id, price) },
-                            onRunCalculation = { viewModel.runCalculation() },
-                            onDismissResult = { viewModel.clearCalculationResult() },
-                            onSaveComputation = { viewModel.saveCalculationToHistory() }
-                        )
-                        3 -> BookletScreen(
-                            searchQuery = bookletSearchQuery,
-                            articles = bookletArticles,
-                            onSearchChange = { viewModel.setBookletSearchQuery(it) },
-                            onSelectGuide = { article -> viewModel.openGuide(article) },
-                            currentLanguage = currentLanguage,
-                            onLanguageSelected = { viewModel.setLanguage(it) }
-                        )
-                        4 -> HistoryScreen(
-                            searchQuery = historySearchQuery,
-                            farms = filteredFarms,
-                            totalFarms = totalFarmsCount,
-                            totalArea = totalAreaHectares,
-                            onSearchChange = { viewModel.setHistorySearchQuery(it) },
-                            onDeleteFarm = { farm -> viewModel.deleteFarmRecord(farm) },
-                            onDeleteAllFarms = { viewModel.deleteAllFarms() },
-                            currentUser = currentUser,
-                            onOpenAuthModal = { viewModel.openAuthModal() },
-                            onLogout = { viewModel.promptLogout() },
-                            onOpenAdminDashboard = { viewModel.openAdminDashboard() },
-                            onOpenDeleteAccount = { viewModel.openDeleteAccountModal() },
-                            onUpdateContactInfo = { name, phone, prov, mun, crop, area, rsbsa, agency ->
-                                viewModel.updateContactInfo(name, phone, prov, mun, crop, area, rsbsa, agency)
-                            },
-                            currentLanguage = currentLanguage,
-                            onLanguageSelected = { viewModel.setLanguage(it) }
-                        )
+                        },
+                        bottomBar = {
+                            BottomNavBar(
+                                selectedTab = currentTab,
+                                currentLanguage = currentLanguage,
+                                onTabSelected = { tab ->
+                                    isSoilAnalysisOpen = false
+                                    viewModel.closeGuide()
+                                    viewModel.selectTab(tab)
+                                }
+                            )
+                        }
+                    ) { innerPadding ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                        ) {
+                            // Visual Offline & Cache Status Banner
+                            OfflineStatusBanner(
+                                isOffline = isOfflineMode,
+                                isCachedContent = isAccessingCachedContent,
+                                currentLanguage = currentLanguage,
+                                lastSyncTime = weatherData.lastSyncTime,
+                                onRetrySync = { viewModel.retryLiveSync() },
+                                isForcedOffline = isForcedOffline,
+                                onToggleForcedOffline = { viewModel.toggleForcedOffline() }
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                            ) {
+                                val activeScreenKey = when {
+                                    isSoilAnalysisOpen -> 100
+                                    selectedGuide != null -> 101
+                                    else -> currentTab
+                                }
+
+                                AnimatedContent(
+                                    targetState = activeScreenKey,
+                                    transitionSpec = {
+                                        if (targetState >= 100 || initialState >= 100) {
+                                            (slideInVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { height -> height / 6 } + fadeIn(tween(240)))
+                                                .togetherWith(slideOutVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { height -> -height / 6 } + fadeOut(tween(180)))
+                                        } else if (targetState > initialState) {
+                                            (slideInHorizontally(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { width -> width / 4 } + fadeIn(tween(220)))
+                                                .togetherWith(slideOutHorizontally(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { width -> -width / 4 } + fadeOut(tween(180)))
+                                        } else {
+                                            (slideInHorizontally(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { width -> -width / 4 } + fadeIn(tween(220)))
+                                                .togetherWith(slideOutHorizontally(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { width -> width / 4 } + fadeOut(tween(180)))
+                                        }
+                                    },
+                                    label = "main_screen_tab_transition"
+                                ) { screenKey ->
+                                    when (screenKey) {
+                                        100 -> {
+                                            SoilAnalysisScreen(
+                                                crop = soilCrop,
+                                                soilType = soilType,
+                                                nitrogen = nitrogenLevel,
+                                                phosphorus = phosphorusLevel,
+                                                potassium = potassiumLevel,
+                                                organicMatter = organicMatter,
+                                                recommendation = soilRecommendation,
+                                                activeReport = activeSoilReport,
+                                                savedReports = savedSoilReports,
+                                                isGeminiAnalyzing = isGeminiAnalyzing,
+                                                geminiError = geminiError,
+                                                onCropChange = { viewModel.setSoilCrop(it) },
+                                                onSoilTypeChange = { viewModel.setSoilType(it) },
+                                                onNitrogenChange = { viewModel.setNitrogenLevel(it) },
+                                                onPhosphorusChange = { viewModel.setPhosphorusLevel(it) },
+                                                onPotassiumChange = { viewModel.setPotassiumLevel(it) },
+                                                onOrganicMatterChange = { viewModel.setOrganicMatter(it) },
+                                                onGenerate = { viewModel.generateSoilRecommendation() },
+                                                onGenerateCustom = { c, t, n, p, k, om, ph, moisture ->
+                                                    viewModel.generateSoilRecommendationWithCustomValues(c, t, n, p, k, om, ph, moisture)
+                                                },
+                                                onAnalyzeWithGemini = { bitmap, crop, onDone ->
+                                                    viewModel.analyzeSoilWithGemini(bitmap, crop, onDone)
+                                                },
+                                                onDismissGeminiError = { viewModel.dismissGeminiError() },
+                                                onSaveReport = { viewModel.saveActiveSoilReport() },
+                                                onDeleteReport = { viewModel.deleteSoilReport(it) },
+                                                onSelectSavedReport = { viewModel.selectSavedSoilReport(it) },
+                                                onBack = { isSoilAnalysisOpen = false },
+                                                currentLanguage = currentLanguage,
+                                                onLanguageSelected = { viewModel.setLanguage(it) }
+                                            )
+                                        }
+                                        101 -> {
+                                            if (selectedGuide != null) {
+                                                GuideDetailScreen(
+                                                    article = selectedGuide!!,
+                                                    onBack = { viewModel.closeGuide() },
+                                                    currentLanguage = currentLanguage,
+                                                    onLanguageSelected = { viewModel.setLanguage(it) }
+                                                )
+                                            }
+                                        }
+                                        0 -> {
+                                            HomeScreen(
+                                                currentLanguage = currentLanguage,
+                                                weatherData = weatherData,
+                                                agriculturalRegions = agriculturalRegions,
+                                                selectedRegion = selectedRegion,
+                                                selectedWeatherScenario = selectedWeatherScenario,
+                                                displayReadabilityMode = displayReadabilityMode,
+                                                isOffline = isOfflineMode,
+                                                isCachedContent = isAccessingCachedContent,
+                                                isForcedOffline = isForcedOffline,
+                                                currentUser = currentUser,
+                                                onOpenAuthModal = { viewModel.openAuthModal() },
+                                                onLogout = { viewModel.promptLogout() },
+                                                onOpenLanding = { viewModel.openLandingScreen() },
+                                                onToggleForcedOffline = { viewModel.toggleForcedOffline() },
+                                                onReadabilityModeChanged = { mode -> viewModel.setDisplayReadabilityMode(mode) },
+                                                onLanguageSelected = { viewModel.setLanguage(it) },
+                                                onRegionSelected = { reg -> viewModel.selectWeatherRegion(reg) },
+                                                onScenarioSelected = { scenario -> viewModel.setWeatherScenario(scenario) },
+                                                onRefreshWeather = { viewModel.refreshWeatherData() },
+                                                onNavigateToTab = { tab -> viewModel.selectTab(tab) },
+                                                onOpenSoilAnalysis = { isSoilAnalysisOpen = true },
+                                                onOpenDeleteAccount = { viewModel.openDeleteAccountModal() },
+                                                onLocationPermissionGranted = { viewModel.onLocationPermissionGranted() }
+                                            )
+                                        }
+                                        1 -> {
+                                            MeasurementScreen(
+                                                cropType = cropType,
+                                                isTracking = isTracking,
+                                                isPaused = isPaused,
+                                                boundaryPoints = boundaryPoints,
+                                                walkingMeters = walkingMeters,
+                                                estimatedHectares = estimatedHectares,
+                                                gpsAccuracy = gpsAccuracy,
+                                                currentLocation = currentLocation,
+                                                currentLanguage = currentLanguage,
+                                                onLanguageSelected = { viewModel.setLanguage(it) },
+                                                restoredNotice = restoredSessionNotice,
+                                                onDismissRestoredNotice = { viewModel.dismissRestoredNotice() },
+                                                onLocationPermissionGranted = { viewModel.onLocationPermissionGranted() },
+                                                onCropChange = { viewModel.setCrop(it) },
+                                                onStartTracking = { viewModel.startTracking() },
+                                                onPauseTracking = { viewModel.pauseTracking() },
+                                                onMarkPoint = { viewModel.markPoint() },
+                                                onUndoPoint = { viewModel.undoLastPoint() },
+                                                onClearPoints = { viewModel.clearAllPoints() },
+                                                onDeletePointAt = { index -> viewModel.deletePointAt(index) },
+                                                onAddPointAt = { lat, lng -> viewModel.addManualPointOnMap(lat, lng) },
+                                                onSaveFarm = { farmName -> viewModel.saveCompletedFarm(farmName) }
+                                            )
+                                        }
+                                        2 -> {
+                                            FertilizerScreen(
+                                                farmArea = fertilizerFarmArea,
+                                                targetN = targetN,
+                                                targetP = targetP,
+                                                targetK = targetK,
+                                                fertilizerList = fertilizerList,
+                                                calculationResult = calculationResult,
+                                                selectedCrop = cropType,
+                                                currentLanguage = currentLanguage,
+                                                weatherData = weatherData,
+                                                agriculturalRegions = agriculturalRegions,
+                                                selectedRegion = selectedRegion,
+                                                selectedWeatherScenario = selectedWeatherScenario,
+                                                onLanguageSelected = { viewModel.setLanguage(it) },
+                                                onRegionSelected = { reg -> viewModel.selectWeatherRegion(reg) },
+                                                onScenarioSelected = { scenario -> viewModel.setWeatherScenario(scenario) },
+                                                onRefreshWeather = { viewModel.refreshWeatherData() },
+                                                onAreaChange = { viewModel.setFertilizerFarmArea(it) },
+                                                onTargetNChange = { viewModel.setTargetN(it) },
+                                                onTargetPChange = { viewModel.setTargetP(it) },
+                                                onTargetKChange = { viewModel.setTargetK(it) },
+                                                onToggleSelected = { id -> viewModel.toggleFertilizerSelected(id) },
+                                                onToggleAvailability = { id -> viewModel.toggleFertilizerAvailability(id) },
+                                                onUpdatePrice = { id, price -> viewModel.updateFertilizerPrice(id, price) },
+                                                onRunCalculation = { viewModel.runCalculation() },
+                                                onDismissResult = { viewModel.clearCalculationResult() },
+                                                onSaveComputation = { viewModel.saveCalculationToHistory() }
+                                            )
+                                        }
+                                        3 -> {
+                                            BookletScreen(
+                                                searchQuery = bookletSearchQuery,
+                                                articles = bookletArticles,
+                                                onSearchChange = { viewModel.setBookletSearchQuery(it) },
+                                                onSelectGuide = { article -> viewModel.openGuide(article) },
+                                                currentLanguage = currentLanguage,
+                                                onLanguageSelected = { viewModel.setLanguage(it) }
+                                            )
+                                        }
+                                        4 -> {
+                                            HistoryScreen(
+                                                searchQuery = historySearchQuery,
+                                                farms = filteredFarms,
+                                                totalFarms = totalFarmsCount,
+                                                totalArea = totalAreaHectares,
+                                                onSearchChange = { viewModel.setHistorySearchQuery(it) },
+                                                onDeleteFarm = { farm -> viewModel.deleteFarmRecord(farm) },
+                                                onDeleteAllFarms = { viewModel.deleteAllFarms() },
+                                                currentUser = currentUser,
+                                                onOpenAuthModal = { viewModel.openAuthModal() },
+                                                onLogout = { viewModel.promptLogout() },
+                                                onOpenAdminDashboard = { viewModel.openAdminDashboard() },
+                                                onOpenDeleteAccount = { viewModel.openDeleteAccountModal() },
+                                                onUpdateContactInfo = { name, phone, prov, mun, crop, area, rsbsa, agency ->
+                                                    viewModel.updateContactInfo(name, phone, prov, mun, crop, area, rsbsa, agency)
+                                                },
+                                                currentLanguage = currentLanguage,
+                                                onLanguageSelected = { viewModel.setLanguage(it) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
-    }
     }
 
     // Global Auth & Account Login Modal
